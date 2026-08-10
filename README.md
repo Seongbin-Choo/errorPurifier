@@ -66,7 +66,11 @@ flowchart LR
 
 ## CI
 
-GitHub Actions는 push와 pull request마다 Java 21 환경에서 `./gradlew test bootJar`를 실행합니다. 실행 JAR과 테스트가 함께 통과해야 변경을 병합할 수 있습니다.
+GitHub Actions는 push와 pull request마다 Java 21 환경에서 `./gradlew test bootJar`를 실행합니다. 실행 JAR과 테스트가 함께 통과해야 변경을 병합할 수 있으며, 성공한 실행의 JAR은 Actions artifact로 내려받을 수 있습니다.
+
+## 상태 확인
+
+`GET /api/v1/health`는 서버와 DB 연결이 준비되면 `200 {"status":"UP"}`를 반환합니다. DB에 연결할 수 없으면 내부 오류를 노출하지 않고 `503 {"status":"DOWN"}`을 반환합니다.
 
 ## IntelliJ 플러그인
 

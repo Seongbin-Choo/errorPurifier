@@ -6,7 +6,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class DiagnosticPlaybookAdminPageController {
 
-    @GetMapping({"/admin", "/admin/"})
+    @GetMapping("/admin")
+    public String redirectToAdminPage() {
+        return "redirect:/admin/";
+    }
+
+    @GetMapping("/admin/")
     public String adminPage() {
         return "forward:/admin/index.html";
     }

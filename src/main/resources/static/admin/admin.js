@@ -70,9 +70,17 @@ function headers() {
 }
 
 async function request(url = apiUrl, options = {}) {
-  const response = await fetch(url, { ...options, headers: { ...headers(), ...options.headers } });
+  let response;
+  try {
+    response = await fetch(url, { ...options, headers: { ...headers(), ...options.headers } });
+  } catch (error) {
+    throw new Error("백엔드에 연결할 수 없습니다. 서버 실행 상태와 주소를 확인하세요.");
+  }
   if (response.status === 204) return null;
   const body = await response.json().catch(() => ({}));
+  if (response.status === 403) {
+    throw new Error("관리자 토큰이 일치하지 않습니다. 백엔드 실행 환경변수와 입력값을 확인한 뒤 서버를 재시작하세요.");
+  }
   if (!response.ok) throw new Error(body.message || body.detail || "요청을 완료하지 못했습니다.");
   return body;
 }
@@ -170,7 +178,7 @@ async function toggle(playbook) {
       method: "PATCH",
       body: JSON.stringify({ active: !playbook.active })
     });
-    setNotice(`${playbook.name}을(를) ${playbook.active ? "비활성화" : "활성화"했습니다.`, "success");
+    setNotice(`${playbook.name}을(를) ${playbook.active ? "비활성화" : "활성화"}했습니다.`, "success");
     await load();
   } catch (error) {
     setNotice(error.message, "error");

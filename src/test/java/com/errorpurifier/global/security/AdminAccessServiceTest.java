@@ -23,4 +23,11 @@ class AdminAccessServiceTest {
         assertThatThrownBy(() -> new AdminAccessService("").requireAdmin("anything"))
                 .isInstanceOf(ResponseStatusException.class);
     }
+
+    @Test
+    void deniesTheExampleTokenEvenWhenItIsProvided() {
+        assertThatThrownBy(() -> new AdminAccessService("change-me").requireAdmin("change-me"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("관리자 권한");
+    }
 }

@@ -96,6 +96,65 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void recordsRepeatedLogCompressionThroughUsageAndAdminDashboard() throws Exception {
+        String syncBody = mockMvc.perform(post("/api/v1/client/sync")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceUuid\":\"\",\"pluginVersion\":\"1.0.0-test\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String deviceId = objectMapper.readTree(syncBody).get("deviceUuid").asText();
+        String repeatedLog = repeatedRedisRetryLog();
+        String prepared = mockMvc.perform(post("/api/v1/prompt/prepare")
+                        .header("X-Device-UUID", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "rawLog":%s,
+                                  "selectedText":null,
+                                  "projectFiles":{"build.gradle":"plugins { id 'java' }"},
+                                  "environmentTags":{"ide":"intellij"}
+                                }
+                                """.formatted(objectMapper.writeValueAsString(repeatedLog))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysisReady").value(true))
+                .andExpect(jsonPath("$.repeatedBlockCount").value(8))
+                .andExpect(jsonPath("$.omittedRepeatBlockCount").value(5))
+                .andExpect(jsonPath("$.repeatCompressionCharacters").value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.refinedLog").value(org.hamcrest.Matchers.containsString("반복 로그 블록 8회 중 5회 생략")))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode preparedResponse = objectMapper.readTree(prepared);
+        String cacheKey = preparedResponse.get("cacheKey").asText();
+        int originalCharacters = preparedResponse.get("originalCharacters").asInt();
+        int preparedCharacters = preparedResponse.get("preparedCharacters").asInt();
+        int repeatCompressionCharacters = preparedResponse.get("repeatCompressionCharacters").asInt();
+        String hash = "b".repeat(64);
+
+        mockMvc.perform(post("/api/v1/usage")
+                        .header("X-Device-UUID", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "provider":"GEMINI", "model":"gemini-test", "cacheKey":"%s", "cacheHit":false,
+                                  "promptHash":"%s", "originalCharacters":%d, "preparedCharacters":%d,
+                                  "repeatCompressionCharacters":%d, "inputTokens":120, "outputTokens":80,
+                                  "thinkingTokens":0, "totalTokens":200, "latencyMs":900, "referencedLines":[], "rating":0
+                                }
+                                """.formatted(cacheKey, hash, originalCharacters, preparedCharacters, repeatCompressionCharacters)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/usage/summary").header("X-Device-UUID", deviceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRequests").value(1))
+                .andExpect(jsonPath("$.repeatCompressionCharacters").value(repeatCompressionCharacters));
+
+        mockMvc.perform(get("/api/v1/admin/dashboard")
+                        .header("X-Admin-Token", "test-admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usage.repeatCompressionCharacters").value(org.hamcrest.Matchers.greaterThanOrEqualTo(repeatCompressionCharacters)))
+                .andExpect(jsonPath("$.usage.totalRequests").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+    }
+
+    @Test
     void returnsNotFoundForAnUnknownEndpoint() throws Exception {
         String response = mockMvc.perform(get("/unknown-endpoint"))
                 .andExpect(status().isNotFound())
@@ -103,6 +162,13 @@ class ApiIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(response).contains("요청한 경로를 찾을 수 없습니다.");
+    }
+
+    @Test
+    void exposesDatabaseReadinessWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
     }
 
     @Test
@@ -235,10 +301,26 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("/admin/index.html"));
 
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/admin/"));
+
         mockMvc.perform(get("/admin/index.html"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("Error Purifier")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("dashboard-metrics")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("dashboard-quality")));
+    }
+
+    private String repeatedRedisRetryLog() {
+        StringBuilder log = new StringBuilder();
+        for (int attempt = 1; attempt <= 8; attempt++) {
+            log.append("2026-08-10 14:02:").append(String.format("%02d", attempt))
+                    .append(".221 [redis-retry-").append(attempt).append("] WARN Redis retry attempt ")
+                    .append(attempt).append("/8 after 5000ms\n")
+                    .append("io.lettuce.core.RedisConnectionException: Failed to obtain JDBC Connection\n")
+                    .append("\tat com.example.RedisClient.reconnect(RedisClient.java:42)\n");
+        }
+        return log.toString();
     }
 }
