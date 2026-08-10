@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    # 운영 MariaDB 접속 정보 (IP 및 스키마명: jcms_prod)
+    url: jdbc:mariadb://10.0.0.10:3306/jcms_prod?useUnicode=true&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Seoul
+    username: prod_user
+    password: ${DB_PASSWORD} # 운영 비밀번호는 반드시 서버 환경변수나 Secret으로 주입받을 것
+
+  jpa:
+    hibernate:
+      # [필수] 운영에서는 절대 update나 create를 쓰면 안 됨! 엔티티와 테이블 구조가 맞는지 검증만 함
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MariaDBDialect
+
+# jcms 프로젝트 커스텀 설정
+jcms:
+  file:
+    upload-path: /var/www/jcms/uploads/ # 실제 서버 업로드 경로
+  resource:
+    minification-enabled: true          # 운영에서는 트래픽 절감을 위해 리소스 압축 활성화
+
+logging:
+  level:
+    root: info
+    com.jcms: warn # 에러나 경고 위주로만 로그를 남겨 디스크 용량 확보
+
+error-purifier:
+  admin:
+    token: ${ERROR_PURIFIER_ADMIN_TOKEN:}
+  rate-limit:
+    daily-limit: 100
+    burst-limit: 10
+    burst-window-seconds: 60

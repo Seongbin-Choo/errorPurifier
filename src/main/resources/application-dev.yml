@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/error_purifier_db
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+    com.errorpurifier: debug
+
+error-purifier:
+  admin:
+    token: ${ERROR_PURIFIER_ADMIN_TOKEN:}
+  rate-limit:
+    daily-limit: 100
+    burst-limit: 10
+    burst-window-seconds: 60
