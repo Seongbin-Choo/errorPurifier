@@ -5,7 +5,6 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-/** Limits only backend prompt-preparation calls; provider API calls stay on the user's machine. */
 @Getter
 @Setter
 @Component

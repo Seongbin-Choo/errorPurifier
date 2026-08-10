@@ -2,6 +2,7 @@ package com.errorpurifier.domain.feedback.service;
 
 import com.errorpurifier.domain.cache.repository.ErrorCacheRepository;
 import com.errorpurifier.domain.client.entity.ClientDevice;
+import com.errorpurifier.domain.client.entity.DeviceStatus;
 import com.errorpurifier.domain.client.repository.ClientDeviceRepository;
 import com.errorpurifier.domain.feedback.dto.RefinementFeedbackRequest;
 import com.errorpurifier.domain.feedback.entity.RefinementFeedback;
@@ -38,8 +39,12 @@ public class RefinementFeedbackService {
 
     private ClientDevice getDevice(String deviceId) {
         try {
-            return deviceRepository.findById(UUID.fromString(deviceId))
+            ClientDevice device = deviceRepository.findById(UUID.fromString(deviceId))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "등록되지 않은 디바이스입니다."));
+            if (device.getStatus() != DeviceStatus.ACTIVE) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "현재 디바이스는 요청을 수행할 수 없습니다.");
+            }
+            return device;
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-Device-UUID 형식이 올바르지 않습니다.");
         }

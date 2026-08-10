@@ -9,7 +9,6 @@ import java.util.ArrayDeque;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Instance-local burst limiter plus the persistent per-day count on ClientDevice. */
 @Component
 @RequiredArgsConstructor
 public class DeviceRequestLimiter {

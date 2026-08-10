@@ -17,7 +17,7 @@ public class RefinementQualityReportController {
     private final RefinementQualityReportService reportService;
 
     @GetMapping
-    public RefinementQualitySummaryResponse summary(@RequestHeader("X-Admin-Token") String adminToken) {
+    public RefinementQualitySummaryResponse summary(@RequestHeader(value = "X-Admin-Token", required = false) String adminToken) {
         adminAccessService.requireAdmin(adminToken);
         return reportService.summary();
     }

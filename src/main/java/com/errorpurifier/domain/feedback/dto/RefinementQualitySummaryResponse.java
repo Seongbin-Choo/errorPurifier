@@ -2,7 +2,6 @@ package com.errorpurifier.domain.feedback.dto;
 
 import java.util.List;
 
-/** Admin-only, aggregate-only report. No raw console content is returned. */
 public record RefinementQualitySummaryResponse(
         FeedbackBreakdown overall,
         FeedbackBreakdown truncatedLogs,

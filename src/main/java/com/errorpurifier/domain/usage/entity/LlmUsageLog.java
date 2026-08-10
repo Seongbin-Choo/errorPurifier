@@ -34,7 +34,6 @@ public class LlmUsageLog {
     @JoinColumn(name = "cache_id")
     private ErrorCache cache;
 
-    /** True only when the response used a previously stored cache process. */
     @Column(nullable = false, columnDefinition = "boolean not null default false")
     private boolean cacheHit;
 
@@ -68,7 +67,6 @@ public class LlmUsageLog {
     @Column(columnDefinition = "TEXT")
     private String referencedLines;
 
-    /** -1: unhelpful, 0: not rated, 1: helpful */
     @Column(nullable = false)
     private int rating;
 
@@ -99,7 +97,6 @@ public class LlmUsageLog {
         this.rating = rating;
     }
 
-    /** A response can be rated once; duplicate button clicks must not alter cache quality twice. */
     public boolean recordFeedback(int rating, boolean resolved) {
         if (this.rating != 0) {
             return false;

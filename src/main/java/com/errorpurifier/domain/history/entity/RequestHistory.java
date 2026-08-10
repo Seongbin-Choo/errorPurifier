@@ -29,7 +29,7 @@ public class RequestHistory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cache_id")
-    private ErrorCache cache; // Cache Miss일 경우 null 허용
+    private ErrorCache cache;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

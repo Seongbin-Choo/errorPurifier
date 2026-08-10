@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
-/** Seeds only an empty rule database; user-managed rules are never overwritten. */
 @Configuration
 public class DefaultLogParsingRuleInitializer {
 

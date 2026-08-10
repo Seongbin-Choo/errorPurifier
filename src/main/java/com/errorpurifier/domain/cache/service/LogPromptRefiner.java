@@ -37,7 +37,6 @@ public class LogPromptRefiner {
         String refined = ruleApplication.text();
         Readiness readiness = assessReadiness(refined);
 
-        // 사용자가 Gradle의 마지막 요약 몇 줄만 선택했더라도, 같은 콘솔 전체에 실제 원인이 있으면 자동으로 찾아 사용한다.
         if (!readiness.ready() && selectedText != null && !selectedText.isBlank() && rawLog != null && !rawLog.equals(selectedText)) {
             source = rawLog;
             sourceCharacters = source.length();
@@ -146,11 +145,6 @@ public class LogPromptRefiner {
         return new Readiness(true, null);
     }
 
-    /**
-     * Bounds provider input without throwing away the likely root cause. A long log
-     * keeps a small lead-in, the first error anchor and the tail (where Gradle often
-     * puts the final cause), with an explicit omission marker between them.
-     */
     private TruncatedLog trimForPrompt(String log) {
         if (log.length() <= MAX_PROMPT_LOG_CHARACTERS) {
             return new TruncatedLog(log, false);

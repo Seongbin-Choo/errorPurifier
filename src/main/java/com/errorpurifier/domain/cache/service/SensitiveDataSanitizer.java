@@ -5,10 +5,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/**
- * Removes common credentials before a log is fingerprinted, cached, or sent to a third-party LLM.
- * It deliberately keeps the surrounding diagnostic text so the error remains understandable.
- */
 @Component
 public class SensitiveDataSanitizer {
 

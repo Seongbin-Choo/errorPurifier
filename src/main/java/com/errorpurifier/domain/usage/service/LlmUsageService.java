@@ -2,6 +2,7 @@ package com.errorpurifier.domain.usage.service;
 
 import com.errorpurifier.domain.cache.repository.ErrorCacheRepository;
 import com.errorpurifier.domain.client.entity.ClientDevice;
+import com.errorpurifier.domain.client.entity.DeviceStatus;
 import com.errorpurifier.domain.client.repository.ClientDeviceRepository;
 import com.errorpurifier.domain.usage.dto.LlmUsageRequest;
 import com.errorpurifier.domain.usage.dto.LlmUsageResponse;
@@ -30,7 +31,6 @@ public class LlmUsageService {
 
         LlmUsageLog usageLog = usageLogRepository.save(LlmUsageLog.builder()
                 .device(device)
-                // A miss uses the default process; its rating must not penalize a stored cache row.
                 .cache(request.cacheHit() ? cacheRepository.findByCacheKeyAndIsBlindedFalse(request.cacheKey()).orElse(null) : null)
                 .cacheHit(request.cacheHit())
                 .provider(request.provider())
@@ -85,8 +85,12 @@ public class LlmUsageService {
 
     private ClientDevice getDevice(String deviceId) {
         try {
-            return deviceRepository.findById(UUID.fromString(deviceId))
+            ClientDevice device = deviceRepository.findById(UUID.fromString(deviceId))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "등록되지 않은 디바이스입니다."));
+            if (device.getStatus() != DeviceStatus.ACTIVE) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "현재 디바이스는 요청을 수행할 수 없습니다.");
+            }
+            return device;
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-Device-UUID 형식이 올바르지 않습니다.");
         }

@@ -51,11 +51,24 @@ public class LogParsingRule extends BaseTimeEntity {
         this.priority = priority;
         this.description = description;
         this.minPluginVersion = minPluginVersion != null ? minPluginVersion : "1.0.0";
-        this.isActive = true; // 기본값 활성화
+        this.isActive = true;
     }
 
-    // 비즈니스 로직: 룰 비활성화 (사용 안 함 처리)
     public void deactivate() {
         this.isActive = false;
+    }
+
+    public void update(RuleType ruleType, String targetFramework, String regexPattern, int priority,
+                       String description, String minPluginVersion) {
+        this.ruleType = ruleType;
+        this.targetFramework = targetFramework;
+        this.regexPattern = regexPattern;
+        this.priority = priority;
+        this.description = description;
+        this.minPluginVersion = minPluginVersion;
+    }
+
+    public void activate() {
+        this.isActive = true;
     }
 }

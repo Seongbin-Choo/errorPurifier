@@ -8,7 +8,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
-/** Small fail-closed guard until a full administrator authentication system is introduced. */
 @Service
 public class AdminAccessService {
 

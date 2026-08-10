@@ -17,14 +17,13 @@ import java.time.LocalDateTime;
 @Table(name = "parsing_audit_log")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class) // 업데이트는 안 치므로 BaseTimeEntity 대신 직접 명시
+@EntityListeners(AuditingEntityListener.class)
 public class ParsingAuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 실무 필수: 연관관계는 무조건 지연로딩(LAZY)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id", nullable = false)
     private ClientDevice device;

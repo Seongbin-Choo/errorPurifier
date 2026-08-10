@@ -73,8 +73,6 @@ public class ErrorCacheService {
             cache.increaseHitCount();
         } else {
             processTemplate = DEFAULT_PROCESS_TEMPLATE;
-            // A low-quality/blinded row keeps the unique cache key for audit and later repair.
-            // Do not insert a duplicate; simply bypass it and use the safe default process.
             if (cache == null && errorCacheRepository.findByCacheKey(cacheKey).isEmpty()) {
                 cache = errorCacheRepository.save(ErrorCache.builder()
                         .cacheKey(cacheKey)
@@ -105,10 +103,6 @@ public class ErrorCacheService {
         );
     }
 
-    /**
-     * Saves a user-approved prompt process after a cache miss. The plugin must use
-     * the cacheKey returned by preparePrompt; raw logs are intentionally not stored again.
-     */
     @Transactional
     public void contributeProcess(CacheContributeRequest request, String deviceUuidString) {
         getActiveDevice(deviceUuidString, false);

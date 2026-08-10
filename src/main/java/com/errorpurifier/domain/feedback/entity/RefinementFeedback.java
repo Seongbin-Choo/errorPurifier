@@ -27,7 +27,6 @@ import jakarta.persistence.EntityListeners;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-/** Privacy-safe refinement feedback: no raw console content or model response is persisted. */
 @Entity
 @Table(name = "refinement_feedback", indexes = {
         @Index(name = "idx_refinement_feedback_created", columnList = "created_at"),

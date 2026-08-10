@@ -24,7 +24,6 @@ public class ErrorCache extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 64)
     private String cacheKey;
 
-    // Hibernate 6 JSON 자동 매핑 (Spring Boot 3.x 필수)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json", nullable = false)
     private Map<String, String> environmentTags;
@@ -32,8 +31,6 @@ public class ErrorCache extends BaseTimeEntity {
     @Column(nullable = false)
     private String exceptionType;
 
-    // 기존 DB의 solution_text 열을 정제 프로세스 템플릿으로 재해석한다.
-    // 운영 스키마 전환은 별도 마이그레이션으로 process_template 열로 rename한다.
     @Column(name = "solution_text", nullable = false, columnDefinition = "TEXT")
     private String processTemplate;
 
@@ -64,7 +61,6 @@ public class ErrorCache extends BaseTimeEntity {
         this.savedTokens = savedTokens;
     }
 
-    // 비즈니스 메서드들 (외부에서 Setter로 조작 금지)
     public void increaseHitCount() {
         this.hitCount++;
     }
@@ -75,16 +71,11 @@ public class ErrorCache extends BaseTimeEntity {
 
     public void reportError() {
         this.reportCount++;
-        if (this.reportCount >= 3) { // 3회 이상 신고 시 자동 블라인드
+        if (this.reportCount >= 3) {
             this.isBlinded = true;
         }
     }
 
-    /**
-     * A cache is reused only while feedback supports it. Two unhelpful reports
-     * with fewer helpful reports are enough to stop automatic reuse; the row is
-     * kept for later process improvement and is permanently blinded at 3 reports.
-     */
     public boolean isReusable() {
         return !isBlinded && !(reportCount >= 2 && reportCount > successCount);
     }
