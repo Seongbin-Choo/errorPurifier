@@ -18,6 +18,7 @@ public interface LlmUsageLogRepository extends JpaRepository<LlmUsageLog, Long> 
                    coalesce(sum(case when u.resolved = true then 1 else 0 end), 0) as resolvedResponses,
                    coalesce(sum(u.inputTokens), 0) as inputTokens,
                    coalesce(sum(u.outputTokens), 0) as outputTokens,
+                   coalesce(sum(u.thinkingTokens), 0) as thinkingTokens,
                    coalesce(sum(u.totalTokens), 0) as totalTokens,
                    coalesce(sum(u.originalCharacters), 0) as originalCharacters,
                    coalesce(sum(u.preparedCharacters), 0) as preparedCharacters,
@@ -34,6 +35,7 @@ public interface LlmUsageLogRepository extends JpaRepository<LlmUsageLog, Long> 
         long getResolvedResponses();
         long getInputTokens();
         long getOutputTokens();
+        long getThinkingTokens();
         long getTotalTokens();
         long getOriginalCharacters();
         long getPreparedCharacters();

@@ -1,8 +1,12 @@
 spring:
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://10.0.0.10:3306/jcms_prod?useUnicode=true&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Seoul
-    username: prod_user
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
   jpa:
@@ -14,16 +18,10 @@ spring:
         format_sql: false
         dialect: org.hibernate.dialect.MariaDBDialect
 
-jcms:
-  file:
-    upload-path: /var/www/jcms/uploads/
-  resource:
-    minification-enabled: true
-
 logging:
   level:
     root: info
-    com.jcms: warn
+    com.errorpurifier: info
 
 error-purifier:
   admin:

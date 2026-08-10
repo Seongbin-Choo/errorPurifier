@@ -40,6 +40,7 @@ public class LlmUsageService {
                 .preparedCharacters(request.preparedCharacters())
                 .inputTokens(request.inputTokens())
                 .outputTokens(request.outputTokens())
+                .thinkingTokens(request.thinkingTokens())
                 .totalTokens(request.totalTokens())
                 .latencyMs(request.latencyMs())
                 .referencedLines(String.join(",", request.referencedLines() == null ? java.util.List.of() : request.referencedLines()))
@@ -79,7 +80,7 @@ public class LlmUsageService {
                 : Math.round(((preparedCharacters - originalCharacters) * 1000D / originalCharacters)) / 10D;
         return new LlmUsageSummaryResponse(
                 summary.getTotalRequests(), summary.getHelpfulResponses(), summary.getUnhelpfulResponses(), summary.getResolvedResponses(),
-                summary.getInputTokens(), summary.getOutputTokens(), summary.getTotalTokens(),
+                summary.getInputTokens(), summary.getOutputTokens(), summary.getThinkingTokens(), summary.getTotalTokens(),
                 originalCharacters, preparedCharacters, characterChange, Math.round(summary.getAverageLatencyMs()));
     }
 

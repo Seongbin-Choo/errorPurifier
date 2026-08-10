@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -38,6 +39,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestHeaderException.class})
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception exception) {
         return response(HttpStatus.BAD_REQUEST.value(), "요청 본문 또는 필수 헤더 형식이 올바르지 않습니다.", Map.of());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException exception) {
+        return response(HttpStatus.NOT_FOUND.value(), "요청한 경로를 찾을 수 없습니다.", Map.of());
     }
 
     @ExceptionHandler(Exception.class)

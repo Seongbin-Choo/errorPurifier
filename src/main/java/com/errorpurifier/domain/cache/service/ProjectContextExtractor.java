@@ -15,6 +15,7 @@ public class ProjectContextExtractor {
     private static final Pattern JAVA_VERSION = Pattern.compile("(?:sourceCompatibility|languageVersion|JavaVersion\\.VERSION_)(?:\\s*=\\s*|\\.of\\()['\\\"]?([0-9]+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SPRING_BOOT = Pattern.compile("org\\.springframework\\.boot(?::|['\\\"])", Pattern.CASE_INSENSITIVE);
     private static final Pattern KOTLIN = Pattern.compile("(?:kotlin\\(|org\\.jetbrains\\.kotlin)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LOMBOK = Pattern.compile("\\blombok\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern GRADLE_GROUP = Pattern.compile("(?m)^\\s*group\\s*=\\s*['\"]([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)+)['\"]");
 
     public Map<String, String> extract(Map<String, String> projectFiles, Map<String, String> declaredTags) {
@@ -62,6 +63,9 @@ public class ProjectContextExtractor {
         }
         if (KOTLIN.matcher(content).find()) {
             tags.putIfAbsent("language", "kotlin");
+        }
+        if (LOMBOK.matcher(content).find()) {
+            tags.putIfAbsent("lombok", "true");
         }
         Matcher group = GRADLE_GROUP.matcher(content);
         if (group.find()) {

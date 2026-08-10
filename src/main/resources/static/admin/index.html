@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error Purifier 관리자</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">ERROR PURIFIER</p>
+        <h1>진단 플레이북 관리</h1>
+        <p class="muted">오류 패턴과 AI 우선 점검 가이드를 관리합니다. 원본 오류 로그와 API 키는 이 화면에 저장되지 않습니다.</p>
+      </div>
+      <div class="token-box">
+        <label for="admin-token">관리자 토큰</label>
+        <div class="inline">
+          <input id="admin-token" type="password" autocomplete="off" placeholder="ERROR_PURIFIER_ADMIN_TOKEN">
+          <button id="load-button" type="button">불러오기</button>
+        </div>
+      </div>
+    </header>
+
+    <p id="notice" class="notice" role="status">관리자 토큰을 입력한 뒤 불러오기를 누르세요.</p>
+
+    <section class="card preview-card">
+      <div class="section-heading">
+        <div>
+          <h2>플레이북 매칭 미리보기</h2>
+          <p class="muted">샘플 로그를 서버의 Java 정규식 엔진으로 검사합니다. 적용 횟수에는 반영되지 않습니다.</p>
+        </div>
+        <button id="preview-button" type="button" class="secondary">매칭 검사</button>
+      </div>
+      <textarea id="preview-log" maxlength="30000" placeholder="여기에 오류 로그 일부를 붙여 넣으세요."></textarea>
+      <p id="preview-result" class="preview-result muted" aria-live="polite">관리자 토큰 입력 후 매칭 검사를 실행하세요.</p>
+    </section>
+
+    <section class="layout">
+      <section class="card list-card">
+        <div class="section-heading">
+          <div>
+            <h2>플레이북</h2>
+            <p id="playbook-count" class="muted">0개</p>
+          </div>
+          <button id="new-button" type="button" class="secondary">새 플레이북</button>
+        </div>
+        <div id="playbook-list" class="playbook-list" aria-live="polite"></div>
+      </section>
+
+      <section class="card editor-card">
+        <div class="section-heading">
+          <div>
+            <h2 id="editor-title">새 플레이북</h2>
+            <p class="muted">정규식은 Java 정규식 문법으로 검증됩니다.</p>
+          </div>
+        </div>
+        <form id="playbook-form">
+          <label for="name">이름</label>
+          <input id="name" name="name" maxlength="100" required placeholder="DATABASE_CONSTRAINT">
+
+          <label for="priority">우선순위</label>
+          <input id="priority" name="priority" type="number" min="0" max="10000" value="100" required>
+
+          <label for="match-pattern">매칭 정규식</label>
+          <textarea id="match-pattern" name="matchPattern" maxlength="1000" required placeholder="(?:DataIntegrityViolationException|Column '.+' cannot be null)"></textarea>
+
+          <label for="pattern-preview-log">작성 중인 규칙 검사 로그</label>
+          <textarea id="pattern-preview-log" maxlength="30000" placeholder="이 규칙과 비교할 로그 일부를 붙여 넣으세요."></textarea>
+          <button id="pattern-preview-button" type="button" class="secondary">작성 중인 규칙 검사</button>
+          <p id="pattern-preview-result" class="preview-result muted" aria-live="polite"></p>
+
+          <label for="guidance">AI 우선 점검 가이드</label>
+          <textarea id="guidance" name="guidance" maxlength="5000" required placeholder="AI가 먼저 확인할 점검 순서와 안전한 수정 원칙을 작성하세요."></textarea>
+
+          <div class="form-actions">
+            <button id="cancel-button" type="button" class="secondary">초기화</button>
+            <button id="save-button" type="submit">저장</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>

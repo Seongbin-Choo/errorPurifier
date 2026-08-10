@@ -10,6 +10,7 @@ import com.errorpurifier.domain.client.entity.DeviceStatus;
 import com.errorpurifier.domain.client.repository.ClientDeviceRepository;
 import com.errorpurifier.domain.client.service.DeviceRequestLimiter;
 import com.errorpurifier.domain.history.dto.HistoryEvent;
+import com.errorpurifier.domain.knowledge.service.DiagnosticPlaybookMatcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,6 +50,7 @@ public class ErrorCacheService {
     private final DeviceRequestLimiter deviceRequestLimiter;
     private final LogPromptRefiner logPromptRefiner;
     private final ProjectContextExtractor projectContextExtractor;
+    private final DiagnosticPlaybookMatcher diagnosticPlaybookMatcher;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -57,12 +60,20 @@ public class ErrorCacheService {
 
         Map<String, String> projectTags = projectContextExtractor.extract(request.projectFiles(), request.environmentTags());
         LogPromptRefiner.RefinedLog refinedLog = logPromptRefiner.refine(request.rawLog(), request.selectedText(), projectTags);
+        List<DiagnosticPlaybookMatcher.DiagnosticPlaybookMatch> playbookMatches = diagnosticPlaybookMatcher.findMatches(refinedLog.text());
+        List<String> knownErrorHints = playbookMatches.stream()
+                .map(match -> "[" + match.name() + "] " + match.guidance())
+                .toList();
+        List<String> diagnosticPlaybooks = playbookMatches.stream()
+                .map(DiagnosticPlaybookMatcher.DiagnosticPlaybookMatch::name)
+                .toList();
         String cacheKey = createCacheKey(refinedLog.text(), projectTags);
         if (!refinedLog.readiness().ready()) {
             return new CacheCheckResponse(false, cacheKey, refinedLog.exceptionType(), null,
                     refinedLog.sourceCharacters(),
+                    refinedLog.text().length(),
                     refinedLog.text().length(), false, refinedLog.readiness().guidance(), refinedLog.truncated(),
-                    refinedLog.appliedRuleCounts(), refinedLog.protectedLineCount());
+                    refinedLog.appliedRuleCounts(), refinedLog.protectedLineCount(), diagnosticPlaybooks);
         }
         ErrorCache cache = errorCacheRepository.findByCacheKeyAndIsBlindedFalse(cacheKey).orElse(null);
         boolean cacheHit = cache != null && cache.isReusable();
@@ -83,7 +94,8 @@ public class ErrorCacheService {
                         .build());
             }
         }
-        String preparedPrompt = renderPrompt(processTemplate, refinedLog.text(), projectTags);
+        String preparedPrompt = renderPrompt(processTemplate, refinedLog.text(), projectTags, knownErrorHints);
+        diagnosticPlaybookMatcher.recordMatches(playbookMatches);
 
         publishHistoryEvent(device.getId().toString(), cacheHit ? cache.getId() : null,
                 cacheHit ? "CACHE_HIT" : "LLM_CALL", elapsedMillis(startedAt));
@@ -94,12 +106,14 @@ public class ErrorCacheService {
                 refinedLog.exceptionType(),
                 preparedPrompt,
                 refinedLog.sourceCharacters(),
+                refinedLog.text().length(),
                 preparedPrompt.length(),
                 true,
                 null,
                 refinedLog.truncated(),
                 refinedLog.appliedRuleCounts(),
-                refinedLog.protectedLineCount()
+                refinedLog.protectedLineCount(),
+                diagnosticPlaybooks
         );
     }
 
@@ -144,7 +158,7 @@ public class ErrorCacheService {
         }
     }
 
-    private String renderPrompt(String template, String refinedLog, Map<String, String> projectTags) {
+    private String renderPrompt(String template, String refinedLog, Map<String, String> projectTags, List<String> knownErrorHints) {
         String numberedLog = numberLines(refinedLog);
         String rendered = template
                 .replace("{project_context}", projectContextExtractor.asPromptContext(projectTags))
@@ -154,6 +168,11 @@ public class ErrorCacheService {
         }
         if (!rendered.contains("근거 로그:")) {
             rendered += "\n\n답변 마지막에 실제 판단에 사용한 로그 줄을 `근거 로그: [L001, L002]` 형식으로 적으세요.";
+        }
+        rendered += "\n\n`Caused by:`와 `Suppressed:`로 시작하는 예외는 누락하지 마세요. "
+                + "각 예외가 근본 원인인지, 2차 증상인지 구분하고 근거 로그 줄을 함께 제시하세요.";
+        if (!knownErrorHints.isEmpty()) {
+            rendered += "\n\n[우선 점검 항목]\n" + String.join("\n", knownErrorHints);
         }
         return rendered;
     }

@@ -9,6 +9,9 @@ import com.errorpurifier.domain.client.repository.ClientDeviceRepository;
 import com.errorpurifier.domain.client.service.DeviceRequestLimiter;
 import com.errorpurifier.domain.client.service.RateLimitProperties;
 import com.errorpurifier.domain.history.dto.HistoryEvent;
+import com.errorpurifier.domain.knowledge.entity.DiagnosticPlaybook;
+import com.errorpurifier.domain.knowledge.repository.DiagnosticPlaybookRepository;
+import com.errorpurifier.domain.knowledge.service.DiagnosticPlaybookMatcher;
 import com.errorpurifier.domain.rule.repository.LogParsingRuleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,7 @@ class ErrorCacheServiceTest {
     private ErrorCacheRepository cacheRepository;
     private ClientDeviceRepository deviceRepository;
     private ApplicationEventPublisher eventPublisher;
+    private DiagnosticPlaybookRepository playbookRepository;
     private ErrorCacheService service;
     private UUID deviceId;
 
@@ -44,6 +48,8 @@ class ErrorCacheServiceTest {
         cacheRepository = mock(ErrorCacheRepository.class);
         deviceRepository = mock(ClientDeviceRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        playbookRepository = mock(DiagnosticPlaybookRepository.class);
+        when(playbookRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(java.util.List.of());
         LogParsingRuleRepository ruleRepository = mock(LogParsingRuleRepository.class);
         when(ruleRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(java.util.List.of());
         RateLimitProperties rateLimitProperties = new RateLimitProperties();
@@ -53,6 +59,7 @@ class ErrorCacheServiceTest {
                 new DeviceRequestLimiter(rateLimitProperties),
                 new LogPromptRefiner(ruleRepository, new SensitiveDataSanitizer()),
                 new ProjectContextExtractor(),
+                new DiagnosticPlaybookMatcher(playbookRepository),
                 eventPublisher
         );
         deviceId = UUID.randomUUID();
@@ -156,6 +163,24 @@ class ErrorCacheServiceTest {
 
         assertThat(response.logTruncated()).isTrue();
         assertThat(response.preparedPrompt()).contains("IllegalStateException: root cause", "긴 로그의 중간 구간 생략");
+    }
+
+    @Test
+    void addsALombokHintForMissingGeneratedMembers() {
+        when(cacheRepository.findByCacheKeyAndIsBlindedFalse(anyString())).thenReturn(Optional.empty());
+        when(cacheRepository.findByCacheKey(anyString())).thenReturn(Optional.empty());
+        when(cacheRepository.save(any(ErrorCache.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(playbookRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(java.util.List.of(
+                DiagnosticPlaybook.builder().name("LOMBOK_ANNOTATION_PROCESSING")
+                        .matchPattern("(?s)cannot find symbol.*getName")
+                        .guidance("Lombok 어노테이션 처리 문제를 우선 점검하세요. Annotation Processing을 확인하세요.")
+                        .priority(100).build()));
+
+        CacheCheckResponse response = service.preparePrompt(new CacheCheckRequest(
+                "error: cannot find symbol\n  symbol: method getName()\n  location: variable response\n",
+                null, Map.of("build.gradle", "compileOnly 'org.projectlombok:lombok'"), Map.of()), deviceId.toString());
+
+        assertThat(response.preparedPrompt()).contains("Lombok 어노테이션 처리 문제", "Annotation Processing");
     }
 
     private CacheCheckRequest request() {

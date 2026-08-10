@@ -45,10 +45,10 @@ public class ClientSyncService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "deviceUuid 형식이 올바르지 않습니다.");
             }
             device = deviceRepository.findById(uuid)
-                    .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 UUID입니다."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "등록되지 않은 디바이스입니다."));
 
             if (device.getStatus() == DeviceStatus.BLOCKED) {
-                throw new IllegalStateException("차단된 디바이스입니다.");
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "차단된 디바이스입니다.");
             }
         }
 

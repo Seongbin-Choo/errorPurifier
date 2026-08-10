@@ -18,6 +18,7 @@ public record LlmUsageRequest(
         @PositiveOrZero int preparedCharacters,
         @PositiveOrZero int inputTokens,
         @PositiveOrZero int outputTokens,
+        @PositiveOrZero int thinkingTokens,
         @PositiveOrZero int totalTokens,
         @PositiveOrZero long latencyMs,
         @Size(max = 100) List<@Size(max = 10) String> referencedLines,
