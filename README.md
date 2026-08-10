@@ -52,7 +52,16 @@ flowchart LR
 - MariaDB
 - IntelliJ 플러그인 프로젝트는 별도로 JDK 17 필요
 
-개발 환경은 `.env.example`을 참고해 DB 환경변수를 설정합니다.
+개발 환경에서는 IntelliJ의 `Run > Edit Configurations > Environment variables` 또는 운영 환경의 비밀 관리 기능에 아래 값을 직접 설정합니다.
+
+| Name | Purpose |
+| --- | --- |
+| `DB_URL` | MariaDB 연결 URL |
+| `DB_USERNAME` | DB 사용자명 |
+| `DB_PASSWORD` | DB 비밀번호 |
+| `ERROR_PURIFIER_ADMIN_TOKEN` | 관리자 화면용 별도 랜덤 토큰 |
+
+`.env` 파일은 필요하지 않으며, 비밀값은 IntelliJ 실행 환경변수 또는 배포 환경의 비밀 관리 기능에서만 설정하세요.
 
 ```bash
 ./gradlew bootRun
