@@ -22,11 +22,24 @@ public interface LlmUsageLogRepository extends JpaRepository<LlmUsageLog, Long> 
                    coalesce(sum(u.totalTokens), 0) as totalTokens,
                    coalesce(sum(u.originalCharacters), 0) as originalCharacters,
                    coalesce(sum(u.preparedCharacters), 0) as preparedCharacters,
+                   coalesce(sum(u.repeatCompressionCharacters), 0) as repeatCompressionCharacters,
+                   coalesce(sum(case when u.cacheHit = true then 1 else 0 end), 0) as cacheHitRequests,
                    coalesce(avg(u.latencyMs), 0) as averageLatencyMs
             from LlmUsageLog u
             where u.device.id = :deviceId
             """)
     UsageSummaryProjection summarizeByDeviceId(@Param("deviceId") UUID deviceId);
+
+    @Query("""
+            select count(u) as totalRequests,
+                   coalesce(sum(u.originalCharacters), 0) as originalCharacters,
+                   coalesce(sum(u.preparedCharacters), 0) as preparedCharacters,
+                   coalesce(sum(u.repeatCompressionCharacters), 0) as repeatCompressionCharacters,
+                   coalesce(sum(case when u.cacheHit = true then 1 else 0 end), 0) as cacheHitRequests,
+                   coalesce(avg(u.latencyMs), 0) as averageLatencyMs
+            from LlmUsageLog u
+            """)
+    UsageSummaryProjection summarizeAll();
 
     interface UsageSummaryProjection {
         long getTotalRequests();
@@ -39,6 +52,8 @@ public interface LlmUsageLogRepository extends JpaRepository<LlmUsageLog, Long> 
         long getTotalTokens();
         long getOriginalCharacters();
         long getPreparedCharacters();
+        long getRepeatCompressionCharacters();
+        long getCacheHitRequests();
         double getAverageLatencyMs();
     }
 }

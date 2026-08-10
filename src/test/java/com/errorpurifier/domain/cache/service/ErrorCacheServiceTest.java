@@ -57,7 +57,7 @@ class ErrorCacheServiceTest {
                 cacheRepository,
                 deviceRepository,
                 new DeviceRequestLimiter(rateLimitProperties),
-                new LogPromptRefiner(ruleRepository, new SensitiveDataSanitizer()),
+                new LogPromptRefiner(ruleRepository, new SensitiveDataSanitizer(), new RepeatedLogCompressor()),
                 new ProjectContextExtractor(),
                 new DiagnosticPlaybookMatcher(playbookRepository),
                 eventPublisher

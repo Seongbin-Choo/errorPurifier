@@ -16,6 +16,7 @@ public record LlmUsageRequest(
         @NotBlank @Size(min = 64, max = 64) String promptHash,
         @PositiveOrZero int originalCharacters,
         @PositiveOrZero int preparedCharacters,
+        @PositiveOrZero int repeatCompressionCharacters,
         @PositiveOrZero int inputTokens,
         @PositiveOrZero int outputTokens,
         @PositiveOrZero int thinkingTokens,

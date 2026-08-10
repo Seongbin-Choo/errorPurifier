@@ -1,4 +1,5 @@
 const apiUrl = "/api/v1/admin/diagnostic-playbooks";
+const dashboardUrl = "/api/v1/admin/dashboard";
 const tokenInput = document.querySelector("#admin-token");
 const notice = document.querySelector("#notice");
 const list = document.querySelector("#playbook-list");
@@ -9,6 +10,9 @@ const previewLog = document.querySelector("#preview-log");
 const previewResult = document.querySelector("#preview-result");
 const patternPreviewLog = document.querySelector("#pattern-preview-log");
 const patternPreviewResult = document.querySelector("#pattern-preview-result");
+const dashboardMetrics = document.querySelector("#dashboard-metrics");
+const dashboardPlaybooks = document.querySelector("#dashboard-playbooks");
+const dashboardQuality = document.querySelector("#dashboard-quality");
 const fields = {
   name: document.querySelector("#name"),
   priority: document.querySelector("#priority"),
@@ -18,6 +22,43 @@ const fields = {
 
 let playbooks = [];
 let editingId = null;
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function renderDashboard(dashboard) {
+  dashboardMetrics.textContent = "";
+  const quality = dashboard.refinementQuality.overall;
+  const metrics = [
+    ["총 분석", `${formatNumber(dashboard.usage.totalRequests)}회`],
+    ["캐시 적중률", `${dashboard.usage.cacheHitRatePercent.toFixed(1)}%`],
+    ["반복 압축 절감", `${formatNumber(dashboard.usage.repeatCompressionCharacters)}자`],
+    ["평균 응답 시간", `${formatNumber(dashboard.usage.averageLatencyMs)}ms`],
+    ["캐시 항목", `${formatNumber(dashboard.cache.cacheEntries)}개`],
+    ["정제 피드백", `${formatNumber(quality.total)}건`],
+    ["정제 적절", `${formatNumber(quality.appropriate)}건`],
+    ["핵심 누락", `${formatNumber(quality.missingContext)}건`],
+    ["노이즈 많음", `${formatNumber(quality.tooNoisy)}건`]
+  ];
+  metrics.forEach(([label, value]) => {
+    const item = document.createElement("div");
+    item.className = "metric";
+    const title = document.createElement("span");
+    title.textContent = label;
+    const number = document.createElement("strong");
+    number.textContent = value;
+    item.append(title, number);
+    dashboardMetrics.append(item);
+  });
+  dashboardPlaybooks.textContent = dashboard.topPlaybooks.length === 0
+    ? "아직 적용된 플레이북 통계가 없습니다."
+    : `상위 플레이북: ${dashboard.topPlaybooks.map(playbook => `${playbook.name} ${formatNumber(playbook.matchCount)}회`).join(" · ")}`;
+  const problematic = dashboard.refinementQuality.mostProblematicCategories;
+  dashboardQuality.textContent = problematic.length === 0
+    ? "정제 품질 피드백이 쌓이면 개선이 필요한 규칙이 표시됩니다."
+    : `개선 우선 정제 항목: ${problematic.map(category => `${category.category} 부정 피드백 ${formatNumber(category.missingContext + category.tooNoisy)}건`).join(" · ")}`;
+}
 
 function setNotice(message, type = "") {
   notice.textContent = message;
@@ -111,11 +152,13 @@ async function load() {
     setNotice("관리자 토큰을 입력하세요.", "error");
     return;
   }
-  setNotice("플레이북을 불러오는 중입니다.");
+  setNotice("플레이북과 운영 통계를 불러오는 중입니다.");
   try {
-    playbooks = await request();
+    const [loadedPlaybooks, dashboard] = await Promise.all([request(), request(dashboardUrl)]);
+    playbooks = loadedPlaybooks;
     render();
-    setNotice("플레이북을 불러왔습니다.", "success");
+    renderDashboard(dashboard);
+    setNotice("플레이북과 운영 통계를 불러왔습니다.", "success");
   } catch (error) {
     setNotice(error.message, "error");
   }

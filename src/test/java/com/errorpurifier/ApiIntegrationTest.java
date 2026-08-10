@@ -54,6 +54,7 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.analysisReady").value(true))
                 .andExpect(jsonPath("$.cacheHit").value(false))
+                .andExpect(jsonPath("$.refinedLog").value(org.hamcrest.Matchers.containsString("IllegalStateException")))
                 .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("IllegalStateException")));
     }
 
@@ -64,6 +65,34 @@ class ApiIntegrationTest {
                         .content("{\"deviceUuid\":\"00000000-0000-0000-0000-000000000001\",\"pluginVersion\":\"1.0.0-test\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void summarizesRepeatCompressionSavingsInUsageHistory() throws Exception {
+        String syncBody = mockMvc.perform(post("/api/v1/client/sync")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceUuid\":\"\",\"pluginVersion\":\"1.0.0-test\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String deviceId = objectMapper.readTree(syncBody).get("deviceUuid").asText();
+        String hash = "a".repeat(64);
+
+        mockMvc.perform(post("/api/v1/usage")
+                        .header("X-Device-UUID", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "provider":"GEMINI", "model":"gemini-test", "cacheKey":"%s", "cacheHit":false,
+                                  "promptHash":"%s", "originalCharacters":5000, "preparedCharacters":900,
+                                  "repeatCompressionCharacters":3900, "inputTokens":200, "outputTokens":100,
+                                  "thinkingTokens":0, "totalTokens":300, "latencyMs":1200, "referencedLines":[], "rating":0
+                                }
+                                """.formatted(hash, hash)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/usage/summary").header("X-Device-UUID", deviceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.repeatCompressionCharacters").value(3900));
     }
 
     @Test
@@ -84,6 +113,21 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$[?(@.name == 'LOMBOK_ANNOTATION_PROCESSING')]").isNotEmpty())
                 .andExpect(jsonPath("$[?(@.name == 'HIKARI_CONNECTION_POOL')]").isNotEmpty())
                 .andExpect(jsonPath("$[?(@.name == 'JPA_LAZY_LOADING')]").isNotEmpty());
+    }
+
+    @Test
+    void exposesAggregateOperationsDashboardOnlyToAdministrators() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/dashboard"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/admin/dashboard")
+                        .header("X-Admin-Token", "test-admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usage.totalRequests").isNumber())
+                .andExpect(jsonPath("$.usage.repeatCompressionCharacters").isNumber())
+                .andExpect(jsonPath("$.cache.cacheEntries").isNumber())
+                .andExpect(jsonPath("$.topPlaybooks").isArray())
+                .andExpect(jsonPath("$.refinementQuality.overall.total").isNumber());
     }
 
     @Test
@@ -193,6 +237,8 @@ class ApiIntegrationTest {
 
         mockMvc.perform(get("/admin/index.html"))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("Error Purifier")));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("Error Purifier")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("dashboard-metrics")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("dashboard-quality")));
     }
 }

@@ -59,6 +59,18 @@ button.danger:hover { background: #92400e; }
 
 .preview-card { margin-bottom: 20px; }
 
+.dashboard-card { margin-bottom: 20px; }
+
+.dashboard-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+
+.metric { border: 1px solid #dbe4f0; border-radius: 10px; padding: 12px; background: #f8fafc; }
+
+.metric span { display: block; color: #64748b; font-size: 12px; margin-bottom: 6px; }
+
+.metric strong { color: #1e3a6e; font-size: 18px; }
+
+.dashboard-playbooks { margin-top: 14px; }
+
 .preview-card textarea { margin-top: 18px; min-height: 112px; }
 
 .preview-result { min-height: 24px; margin: 12px 0 0; white-space: pre-wrap; }
@@ -95,4 +107,5 @@ button.danger:hover { background: #92400e; }
   main { padding: 28px 16px; }
   header { align-items: stretch; flex-direction: column; }
   .layout { grid-template-columns: 1fr; }
+  .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

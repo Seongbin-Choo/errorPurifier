@@ -11,6 +11,7 @@ public record CacheCheckResponse(
         String cacheKey,
         String exceptionType,
         String preparedPrompt,
+        String refinedLog,
         int originalCharacters,
         int refinedCharacters,
         int preparedCharacters,
@@ -19,6 +20,9 @@ public record CacheCheckResponse(
         boolean logTruncated,
         Map<String, Integer> appliedRuleCounts,
         int protectedLineCount,
+        int repeatedBlockCount,
+        int omittedRepeatBlockCount,
+        int repeatCompressionCharacters,
         List<String> diagnosticPlaybooks
 ) {
 }

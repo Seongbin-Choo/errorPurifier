@@ -38,6 +38,7 @@ public class LlmUsageService {
                 .promptHash(request.promptHash())
                 .originalCharacters(request.originalCharacters())
                 .preparedCharacters(request.preparedCharacters())
+                .repeatCompressionCharacters(request.repeatCompressionCharacters())
                 .inputTokens(request.inputTokens())
                 .outputTokens(request.outputTokens())
                 .thinkingTokens(request.thinkingTokens())
@@ -81,7 +82,8 @@ public class LlmUsageService {
         return new LlmUsageSummaryResponse(
                 summary.getTotalRequests(), summary.getHelpfulResponses(), summary.getUnhelpfulResponses(), summary.getResolvedResponses(),
                 summary.getInputTokens(), summary.getOutputTokens(), summary.getThinkingTokens(), summary.getTotalTokens(),
-                originalCharacters, preparedCharacters, characterChange, Math.round(summary.getAverageLatencyMs()));
+                originalCharacters, preparedCharacters, summary.getRepeatCompressionCharacters(), characterChange,
+                Math.round(summary.getAverageLatencyMs()));
     }
 
     private ClientDevice getDevice(String deviceId) {

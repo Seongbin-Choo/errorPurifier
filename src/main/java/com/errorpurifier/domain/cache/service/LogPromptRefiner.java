@@ -24,6 +24,7 @@ public class LogPromptRefiner {
 
     private final LogParsingRuleRepository ruleRepository;
     private final SensitiveDataSanitizer sensitiveDataSanitizer;
+    private final RepeatedLogCompressor repeatedLogCompressor;
 
     public RefinedLog refine(String rawLog, String selectedText) {
         return refine(rawLog, selectedText, Map.of());
@@ -33,21 +34,28 @@ public class LogPromptRefiner {
         String source = selectedText != null && !selectedText.isBlank() ? selectedText : rawLog;
         int sourceCharacters = source.length();
         String projectPackagePrefix = projectTags.getOrDefault("project-package-prefix", "");
-        RuleApplication ruleApplication = applyRules(normalizeWhitespace(sensitiveDataSanitizer.sanitize(source)), projectPackagePrefix);
+        RepeatedLogCompressor.CompressionResult compression = compressRepeatedBlocks(source);
+        RuleApplication ruleApplication = applyRules(compression.text(), projectPackagePrefix);
         String refined = ruleApplication.text();
         Readiness readiness = assessReadiness(refined);
 
         if (!readiness.ready() && selectedText != null && !selectedText.isBlank() && rawLog != null && !rawLog.equals(selectedText)) {
             source = rawLog;
             sourceCharacters = source.length();
-            ruleApplication = applyRules(normalizeWhitespace(sensitiveDataSanitizer.sanitize(rawLog)), projectPackagePrefix);
+            compression = compressRepeatedBlocks(rawLog);
+            ruleApplication = applyRules(compression.text(), projectPackagePrefix);
             refined = ruleApplication.text();
             readiness = assessReadiness(refined);
         }
 
         TruncatedLog truncatedLog = trimForPrompt(refined);
         return new RefinedLog(truncatedLog.text(), detectExceptionType(truncatedLog.text()), readiness, sourceCharacters,
-                truncatedLog.truncated(), ruleApplication.appliedRuleCounts(), ruleApplication.protectedLineCount());
+                truncatedLog.truncated(), ruleApplication.appliedRuleCounts(), ruleApplication.protectedLineCount(),
+                compression.repeatedBlockCount(), compression.omittedBlockCount(), compression.savedCharacters());
+    }
+
+    private RepeatedLogCompressor.CompressionResult compressRepeatedBlocks(String source) {
+        return repeatedLogCompressor.compress(normalizeWhitespace(sensitiveDataSanitizer.sanitize(source)));
     }
 
     private RuleApplication applyRules(String text, String projectPackagePrefix) {
@@ -169,7 +177,8 @@ public class LogPromptRefiner {
     }
 
     public record RefinedLog(String text, String exceptionType, Readiness readiness, int sourceCharacters, boolean truncated,
-                             Map<String, Integer> appliedRuleCounts, int protectedLineCount) {
+                             Map<String, Integer> appliedRuleCounts, int protectedLineCount, int repeatedBlockCount,
+                             int omittedRepeatBlockCount, int repeatCompressionCharacters) {
     }
 
     public record Readiness(boolean ready, String guidance) {

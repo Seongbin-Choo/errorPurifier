@@ -53,6 +53,9 @@ public class LlmUsageLog {
     private int preparedCharacters;
 
     @Column(nullable = false)
+    private int repeatCompressionCharacters;
+
+    @Column(nullable = false)
     private int inputTokens;
 
     @Column(nullable = false)
@@ -82,7 +85,7 @@ public class LlmUsageLog {
 
     @Builder
     public LlmUsageLog(ClientDevice device, ErrorCache cache, boolean cacheHit, String provider, String model, String promptHash,
-                       int originalCharacters, int preparedCharacters, int inputTokens, int outputTokens, int thinkingTokens,
+                       int originalCharacters, int preparedCharacters, int repeatCompressionCharacters, int inputTokens, int outputTokens, int thinkingTokens,
                        int totalTokens, long latencyMs, String referencedLines, int rating) {
         this.device = device;
         this.cache = cache;
@@ -92,6 +95,7 @@ public class LlmUsageLog {
         this.promptHash = promptHash;
         this.originalCharacters = originalCharacters;
         this.preparedCharacters = preparedCharacters;
+        this.repeatCompressionCharacters = repeatCompressionCharacters;
         this.inputTokens = inputTokens;
         this.outputTokens = outputTokens;
         this.thinkingTokens = thinkingTokens;

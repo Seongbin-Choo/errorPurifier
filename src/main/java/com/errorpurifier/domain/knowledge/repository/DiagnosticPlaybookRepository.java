@@ -11,6 +11,7 @@ import java.util.List;
 public interface DiagnosticPlaybookRepository extends JpaRepository<DiagnosticPlaybook, Long> {
     List<DiagnosticPlaybook> findByIsActiveTrueOrderByPriorityDesc();
     List<DiagnosticPlaybook> findAllByOrderByPriorityDescIdAsc();
+    List<DiagnosticPlaybook> findTop5ByOrderByMatchCountDescIdAsc();
     boolean existsByName(String name);
     boolean existsByNameAndIdNot(String name, Long id);
 

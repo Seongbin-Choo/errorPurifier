@@ -70,10 +70,12 @@ public class ErrorCacheService {
         String cacheKey = createCacheKey(refinedLog.text(), projectTags);
         if (!refinedLog.readiness().ready()) {
             return new CacheCheckResponse(false, cacheKey, refinedLog.exceptionType(), null,
+                    refinedLog.text(),
                     refinedLog.sourceCharacters(),
                     refinedLog.text().length(),
                     refinedLog.text().length(), false, refinedLog.readiness().guidance(), refinedLog.truncated(),
-                    refinedLog.appliedRuleCounts(), refinedLog.protectedLineCount(), diagnosticPlaybooks);
+                    refinedLog.appliedRuleCounts(), refinedLog.protectedLineCount(), refinedLog.repeatedBlockCount(),
+                    refinedLog.omittedRepeatBlockCount(), refinedLog.repeatCompressionCharacters(), diagnosticPlaybooks);
         }
         ErrorCache cache = errorCacheRepository.findByCacheKeyAndIsBlindedFalse(cacheKey).orElse(null);
         boolean cacheHit = cache != null && cache.isReusable();
@@ -105,6 +107,7 @@ public class ErrorCacheService {
                 cacheKey,
                 refinedLog.exceptionType(),
                 preparedPrompt,
+                refinedLog.text(),
                 refinedLog.sourceCharacters(),
                 refinedLog.text().length(),
                 preparedPrompt.length(),
@@ -113,6 +116,9 @@ public class ErrorCacheService {
                 refinedLog.truncated(),
                 refinedLog.appliedRuleCounts(),
                 refinedLog.protectedLineCount(),
+                refinedLog.repeatedBlockCount(),
+                refinedLog.omittedRepeatBlockCount(),
+                refinedLog.repeatCompressionCharacters(),
                 diagnosticPlaybooks
         );
     }

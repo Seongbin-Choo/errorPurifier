@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface ErrorCacheRepository extends JpaRepository<ErrorCache,Long> {
     Optional<ErrorCache> findByCacheKeyAndIsBlindedFalse(String cacheKey);
     Optional<ErrorCache> findByCacheKey(String cacheKey);
+    long countByIsBlindedFalse();
 }
