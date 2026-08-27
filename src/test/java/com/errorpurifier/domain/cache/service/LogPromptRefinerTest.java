@@ -64,6 +64,18 @@ class LogPromptRefinerTest {
         assertThat(result.text()).contains("반복 로그 블록 4회 중 1회 생략");
     }
 
+    @Test
+    void marksIdeExecutionTrailerAsNonDiagnosticMetadata() {
+        LogParsingRuleRepository repository = mock(LogParsingRuleRepository.class);
+        when(repository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of());
+        LogPromptRefiner refiner = new LogPromptRefiner(repository, new SensitiveDataSanitizer(), new RepeatedLogCompressor());
+
+        LogPromptRefiner.RefinedLog result = refiner.refine("200 OK\nProcess finished with exit code 1", null);
+
+        assertThat(result.text()).contains("[실행 환경 메타데이터 - 이 로그만으로 종료 원인 판정 불가")
+                .contains("Process finished with exit code 1");
+    }
+
     private LogParsingRule rule(LogParsingRule.RuleType type, String regex) {
         return LogParsingRule.builder()
                 .ruleType(type)
