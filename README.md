@@ -27,6 +27,8 @@ flowchart LR
 - 타임스탬프 기반 재시도 로그와 타임스탬프 없는 예외 블록 반복 지원
 - Gemini, OpenAI, Claude 스트리밍 분석 및 빠른/정밀/심층 분석 모드
 - 근거 로그 줄 인용, 실제 입력·출력·추론 토큰 및 응답 시간 표시
+- IDE 종료 코드 같은 실행 환경 문구를 별도 태깅해 단독 오류 근거로 쓰지 않도록 제한
+- 답변의 누락된 근거 인용과 정상 응답 로그에 상충하는 크래시 서술을 경고로 표시
 - 프롬프트 캐시와 사용자 피드백 기반 품질 추적
 - 관리자 플레이북: 자주 발생하는 오류의 점검 가이드를 AI 프롬프트에 추가
 - 관리자 대시보드: 캐시 적중률, 반복 압축 절감량, 플레이북 적용량, 정제 품질 피드백 확인
@@ -50,7 +52,7 @@ flowchart LR
 
 - Java 21
 - MariaDB
-- IntelliJ 플러그인 프로젝트는 별도로 JDK 17 필요
+- IntelliJ 플러그인 프로젝트는 별도로 JDK 25 필요 (IntelliJ IDEA 2026.2 이상)
 
 개발 환경에서는 IntelliJ의 `Run > Edit Configurations > Environment variables` 또는 운영 환경의 비밀 관리 기능에 아래 값을 직접 설정합니다.
 
@@ -61,7 +63,7 @@ flowchart LR
 | `DB_PASSWORD` | DB 비밀번호 |
 | `ERROR_PURIFIER_ADMIN_TOKEN` | 관리자 화면용 별도 랜덤 토큰 |
 
-`.env` 파일은 필요하지 않으며, 비밀값은 IntelliJ 실행 환경변수 또는 배포 환경의 비밀 관리 기능에서만 설정하세요.
+로컬에서는 Git에서 제외된 `.env` 파일도 사용할 수 있습니다. IntelliJ 실행 환경변수와 운영 환경의 비밀 관리 기능에 설정한 값이 있으면 해당 값이 우선합니다. 비밀값이 든 `.env` 파일은 커밋하지 마세요.
 
 ```bash
 ./gradlew bootRun
