@@ -45,7 +45,7 @@ class ApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "rawLog":"java.lang.IllegalStateException: sample failure\\n  at com.example.App.run(App.java:42)",
+                                  "rawLog":"java.lang.IllegalStateException: sample failure\\n  at com.example.App.run(App.java:42)\\nProcess finished with exit code 1",
                                   "selectedText":null,
                                   "projectFiles":{"build.gradle":"plugins { id 'java' }"},
                                   "environmentTags":{"ide":"intellij"}
@@ -55,6 +55,10 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.analysisReady").value(true))
                 .andExpect(jsonPath("$.cacheHit").value(false))
                 .andExpect(jsonPath("$.refinedLog").value(org.hamcrest.Matchers.containsString("IllegalStateException")))
+                .andExpect(jsonPath("$.refinedLog").value(org.hamcrest.Matchers.containsString("실행 환경 메타데이터")))
+                .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("근거 사용 제약")))
+                .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("종료 코드의 원인은 이 로그만으로 알 수 없으며")))
+                .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("캐시 키에 tenantId가 누락된 문제를 1차 의심")))
                 .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("IllegalStateException")));
     }
 

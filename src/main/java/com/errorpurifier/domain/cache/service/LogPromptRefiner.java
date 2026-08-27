@@ -21,6 +21,8 @@ public class LogPromptRefiner {
 
     private static final int MAX_PROMPT_LOG_CHARACTERS = 12_000;
     private static final Pattern ERROR_ANCHOR = Pattern.compile("(?m)^.*(?:Caused by:|Exception|Error).*$");
+    private static final Pattern EXECUTION_TRAILER = Pattern.compile("(?i)^.*(?:process finished with exit code|exit code\\s*\\d+|종료 코드\\s*\\d+).*$");
+    private static final String EXECUTION_METADATA_PREFIX = "[실행 환경 메타데이터 - 이 로그만으로 종료 원인 판정 불가, 별도 애플리케이션 종료 로그 필요] ";
 
     private final LogParsingRuleRepository ruleRepository;
     private final SensitiveDataSanitizer sensitiveDataSanitizer;
@@ -103,7 +105,7 @@ public class LogPromptRefiner {
         for (CompiledRule rule : extractRules) {
             refined = extractMatches(refined, rule.pattern());
         }
-        return new RuleApplication(normalizeWhitespace(refined), Map.copyOf(appliedRuleCounts), protectedLineCount);
+        return new RuleApplication(normalizeWhitespace(markExecutionMetadata(refined)), Map.copyOf(appliedRuleCounts), protectedLineCount);
     }
 
     public String normalizeForFingerprint(String value) {
@@ -126,6 +128,13 @@ public class LogPromptRefiner {
 
     private boolean isProtected(String line, List<Pattern> protectedLinePatterns) {
         return protectedLinePatterns.stream().anyMatch(pattern -> pattern.matcher(line).find());
+    }
+
+    private String markExecutionMetadata(String text) {
+        return java.util.Arrays.stream(text.split("\\R", -1))
+                .map(line -> EXECUTION_TRAILER.matcher(line).matches() && !line.startsWith(EXECUTION_METADATA_PREFIX)
+                        ? EXECUTION_METADATA_PREFIX + line : line)
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     private String normalizeWhitespace(String text) {
