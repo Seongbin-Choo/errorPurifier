@@ -97,7 +97,7 @@ flowchart LR
 
 - 백엔드는 로그 정제, 반복 압축, 캐시, 사용량과 품질 지표를 담당합니다.
 - 실제 LLM 호출과 API 키 보관은 사용자의 IntelliJ에서 수행합니다.
-- 일반 사용량 기록에는 원본 로그나 AI 답변 본문을 저장하지 않습니다. 감사 로그 기능으로 보내는 로그는 서버에서 다시 마스킹됩니다.
+- 일반 사용량 기록에는 원본 로그나 AI 답변 본문을 저장하지 않습니다. 현재 IntelliJ 플러그인의 일반 분석 흐름은 별도의 감사 로그 API를 호출하지 않습니다.
 
 ## 주요 기능
 
@@ -167,7 +167,7 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 
 ## IntelliJ 플러그인
 
-플러그인 프로젝트는 별도 `error-purifier-plugin` 저장소로 관리합니다.
+플러그인 프로젝트는 별도 [error-purifier-plugin 저장소](https://github.com/Seongbin-Choo/error-purifier-plugin)로 관리합니다.
 
 1. 백엔드를 실행합니다.
 2. IntelliJ 설정의 `Tools > AI Error Purifier`에서 백엔드 URL, 제공자, 모델, API 키를 설정합니다.
@@ -175,6 +175,12 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 4. 결과 도구 창에서 `AI 답변`, `정제 로그`, `내 사용량` 탭을 확인합니다.
 
 `정제 로그` 탭에는 AI에 전달된 마스킹·압축 완료 로그가 표시됩니다. `내 사용량` 탭에는 실제 API 토큰, 응답 시간, 누적 반복 로그 압축 절감량이 표시됩니다.
+
+## 개인정보 및 셀프호스팅 운영 책임
+
+이 백엔드는 중앙 운영 서비스가 아니라 사용자가 직접 배포하는 셀프호스팅 구성요소입니다. 데이터베이스의 디바이스·캐시·사용량·피드백·요청 이력에는 자동 보존기한이나 자동 삭제 작업이 없으므로, 접근 통제·전송 보안·백업·보존 기간·삭제는 백엔드 운영자가 관리해야 합니다. 일반 프롬프트 준비 흐름은 제출된 원본 로그나 AI 답변 본문을 데이터베이스에 저장하지 않으며, 현재 IntelliJ 플러그인은 별도의 감사 로그 API를 호출하지 않습니다.
+
+플러그인이 전송하는 정확한 데이터와 동의·철회 동작은 [플러그인 개인정보 처리방침](https://github.com/Seongbin-Choo/error-purifier-plugin/blob/main/PRIVACY.md)을 확인하세요.
 
 ## 관리자 화면
 
@@ -201,4 +207,9 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 ## 참고 문서
 
 - API 세부 목록과 운영 환경변수: [HELP.md](HELP.md)
-- 플러그인 빌드·설치: `error-purifier-plugin` 저장소의 README
+- 플러그인 빌드·설치: [error-purifier-plugin README](https://github.com/Seongbin-Choo/error-purifier-plugin#readme)
+- 플러그인 데이터 흐름·보관·동의: [AI Error Log Purifier Privacy Policy](https://github.com/Seongbin-Choo/error-purifier-plugin/blob/main/PRIVACY.md)
+
+## 라이선스
+
+이 프로젝트는 [MIT License](LICENSE)로 배포됩니다.
