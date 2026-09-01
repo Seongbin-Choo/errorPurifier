@@ -73,6 +73,7 @@ public class ErrorCacheService {
                     .cacheHit(false)
                     .analysisReady(false)
                     .preparedCharacters(refinedLog.text().length())
+                    .guidanceCode(refinedLog.readiness().guidanceCode())
                     .guidance(refinedLog.readiness().guidance())
                     .build();
         }

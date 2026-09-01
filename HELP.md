@@ -66,3 +66,5 @@ Flyway는 새 DB에 초기 스키마를 생성합니다. 기존 DB에서는 현�
 감사 로그에 전달된 원본·정제 로그는 저장 전에 민감정보를 마스킹합니다. 사용량·이력 API에는 원문 로그나 LLM 응답 본문을 저장하지 않습니다.
 
 오류 응답은 모든 API에서 `timestamp`, `status`, `code`, `message`, `fieldErrors` 필드로 일관되게 반환됩니다.
+
+`POST /api/v1/prompt/prepare`가 `analysisReady=false`를 반환하면 클라이언트 현지화를 위한 안정적인 `guidanceCode`와 기존 호환용 `guidance` 문자열을 함께 제공합니다. 현재 코드는 `BUILD_WRAPPER_ONLY`와 `NO_ACTIONABLE_LOG`이며, 구버전 서버처럼 코드가 없거나 미래의 알 수 없는 코드가 오면 클라이언트는 `guidance`를 그대로 표시해야 합니다.

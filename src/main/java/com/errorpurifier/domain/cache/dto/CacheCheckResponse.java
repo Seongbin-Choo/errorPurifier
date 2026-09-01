@@ -16,6 +16,7 @@ public record CacheCheckResponse(
         int refinedCharacters,
         int preparedCharacters,
         boolean analysisReady,
+        String guidanceCode,
         String guidance,
         boolean logTruncated,
         Map<String, Integer> appliedRuleCounts,
