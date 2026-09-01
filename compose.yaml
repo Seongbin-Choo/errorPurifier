@@ -1,0 +1,45 @@
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      TZ: UTC
+      MARIADB_DATABASE: error_purifier_db
+      MARIADB_USER: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+    volumes:
+      - error-purifier-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TZ: UTC
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mariadb://db:3306/error_purifier_db
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      ERROR_PURIFIER_ADMIN_TOKEN: ${ERROR_PURIFIER_ADMIN_TOKEN:?Set ERROR_PURIFIER_ADMIN_TOKEN in .env}
+    ports:
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  error-purifier-db:

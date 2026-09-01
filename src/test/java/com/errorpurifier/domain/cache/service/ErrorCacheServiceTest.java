@@ -133,6 +133,7 @@ class ErrorCacheServiceTest {
                 null, Map.of(), Map.of()), deviceId.toString());
 
         assertThat(response.analysisReady()).isFalse();
+        assertThat(response.guidanceCode()).isEqualTo(LogPromptRefiner.GUIDANCE_BUILD_WRAPPER_ONLY);
         assertThat(response.guidance()).contains("--stacktrace");
         verifyNoInteractions(cacheRepository);
     }

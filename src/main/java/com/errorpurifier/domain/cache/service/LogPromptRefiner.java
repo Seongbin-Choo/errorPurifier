@@ -19,6 +19,9 @@ import java.util.regex.PatternSyntaxException;
 @RequiredArgsConstructor
 public class LogPromptRefiner {
 
+    public static final String GUIDANCE_BUILD_WRAPPER_ONLY = "BUILD_WRAPPER_ONLY";
+    public static final String GUIDANCE_NO_ACTIONABLE_LOG = "NO_ACTIONABLE_LOG";
+
     private static final int MAX_PROMPT_LOG_CHARACTERS = 12_000;
     private static final Pattern ERROR_ANCHOR = Pattern.compile("(?m)^.*(?:Caused by:|Exception|Error).*$");
     private static final Pattern EXECUTION_TRAILER = Pattern.compile("(?i)^.*(?:process finished with exit code|exit code\\s*\\d+|종료 코드\\s*\\d+).*$");
@@ -151,15 +154,16 @@ public class LogPromptRefiner {
         boolean isGradleWrapperFailure = log.contains("Execution failed for task")
                 || log.contains("non-zero exit value") || log.contains("BUILD FAILED");
         if (isGradleWrapperFailure && !hasException) {
-            return new Readiness(false,
+            return new Readiness(false, GUIDANCE_BUILD_WRAPPER_ONLY,
                     "현재 콘솔에는 Gradle 실행 실패 요약만 있고 애플리케이션 예외가 없습니다. "
                             + "Run 콘솔을 위로 올려 첫 `Exception in thread`, `ERROR`, 또는 `Caused by:` 줄부터 아래 스택트레이스까지 선택해 다시 실행하세요. "
                             + "Gradle 자체 설정 오류가 의심되면 실행 명령에 `--stacktrace`를 추가하세요.");
         }
         if (log.isBlank()) {
-            return new Readiness(false, "정제 후 분석할 로그가 남아 있지 않습니다. 예외 메시지와 스택트레이스가 포함된 구간을 선택하세요.");
+            return new Readiness(false, GUIDANCE_NO_ACTIONABLE_LOG,
+                    "정제 후 분석할 로그가 남아 있지 않습니다. 예외 메시지와 스택트레이스가 포함된 구간을 선택하세요.");
         }
-        return new Readiness(true, null);
+        return new Readiness(true, null, null);
     }
 
     private TruncatedLog trimForPrompt(String log) {
@@ -190,7 +194,7 @@ public class LogPromptRefiner {
                              int omittedRepeatBlockCount, int repeatCompressionCharacters) {
     }
 
-    public record Readiness(boolean ready, String guidance) {
+    public record Readiness(boolean ready, String guidanceCode, String guidance) {
     }
 
     private record TruncatedLog(String text, boolean truncated) {

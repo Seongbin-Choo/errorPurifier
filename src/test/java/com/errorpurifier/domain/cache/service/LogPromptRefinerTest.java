@@ -76,6 +76,24 @@ class LogPromptRefinerTest {
                 .contains("Process finished with exit code 1");
     }
 
+    @Test
+    void returnsStableGuidanceCodesForKnownUnreadyConditions() {
+        LogParsingRuleRepository repository = mock(LogParsingRuleRepository.class);
+        when(repository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of());
+        LogPromptRefiner refiner = new LogPromptRefiner(repository, new SensitiveDataSanitizer(), new RepeatedLogCompressor());
+
+        LogPromptRefiner.RefinedLog wrapperOnly = refiner.refine(
+                "Execution failed for task ':app.run()'.\nProcess finished with non-zero exit value 1\nBUILD FAILED", null);
+        LogPromptRefiner.RefinedLog empty = refiner.refine("   \n", null);
+
+        assertThat(wrapperOnly.readiness().ready()).isFalse();
+        assertThat(wrapperOnly.readiness().guidanceCode()).isEqualTo(LogPromptRefiner.GUIDANCE_BUILD_WRAPPER_ONLY);
+        assertThat(wrapperOnly.readiness().guidance()).contains("--stacktrace");
+        assertThat(empty.readiness().ready()).isFalse();
+        assertThat(empty.readiness().guidanceCode()).isEqualTo(LogPromptRefiner.GUIDANCE_NO_ACTIONABLE_LOG);
+        assertThat(empty.readiness().guidance()).contains("분석할 로그");
+    }
+
     private LogParsingRule rule(LogParsingRule.RuleType type, String regex) {
         return LogParsingRule.builder()
                 .ruleType(type)

@@ -63,6 +63,32 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void returnsStableGuidanceCodeAlongsideLegacyGuidance() throws Exception {
+        String syncBody = mockMvc.perform(post("/api/v1/client/sync")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceUuid\":\"\",\"pluginVersion\":\"1.0.0-test\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String deviceId = objectMapper.readTree(syncBody).get("deviceUuid").asText();
+
+        mockMvc.perform(post("/api/v1/prompt/prepare")
+                        .header("X-Device-UUID", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "rawLog":"Execution failed for task ':app.run()'.\\nProcess finished with non-zero exit value 1\\nBUILD FAILED",
+                                  "selectedText":null,
+                                  "projectFiles":{},
+                                  "environmentTags":{}
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysisReady").value(false))
+                .andExpect(jsonPath("$.guidanceCode").value("BUILD_WRAPPER_ONLY"))
+                .andExpect(jsonPath("$.guidance").value(org.hamcrest.Matchers.containsString("--stacktrace")));
+    }
+
+    @Test
     void rejectsAnUnknownDeviceDuringSynchronization() throws Exception {
         mockMvc.perform(post("/api/v1/client/sync")
                         .contentType(MediaType.APPLICATION_JSON)
