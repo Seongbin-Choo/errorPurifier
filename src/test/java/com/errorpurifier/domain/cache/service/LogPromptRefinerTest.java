@@ -94,6 +94,61 @@ class LogPromptRefinerTest {
         assertThat(empty.readiness().guidance()).contains("분석할 로그");
     }
 
+    @Test
+    void longSpringDebugLogKeepsDeepestCauseInsteadOfClassNamesContainingError() {
+        LogParsingRuleRepository repository = mock(LogParsingRuleRepository.class);
+        when(repository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of());
+        LogPromptRefiner refiner = new LogPromptRefiner(repository, new SensitiveDataSanitizer(), new RepeatedLogCompressor());
+        StringBuilder log = new StringBuilder();
+        appendDistinctDebugNoise(log, 48_000, "scanned InvalidErrorException.class and ErrorMvcAutoConfiguration");
+        log.append("Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean 'dataSource'\n");
+        appendDistinctDebugNoise(log, 72_000, "condition evaluation after top-level failure");
+        log.append("Caused by: org.springframework.boot.autoconfigure.jdbc.DataSourceProperties$DataSourceBeanCreationException: Failed to determine a suitable driver class\n")
+                .append("\tat org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.determineDriverClassName(DataSourceProperties.java:252)\n");
+        appendDistinctDebugNoise(log, 125_000, "shutdown diagnostics after root cause");
+
+        LogPromptRefiner.RefinedLog result = refiner.refine(log.toString(), null);
+
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.text())
+                .hasSizeLessThanOrEqualTo(12_000)
+                .contains("DataSourceBeanCreationException: Failed to determine a suitable driver class");
+    }
+
+    @Test
+    void springErrorLineWithSpaceSeparatedDateAndTimeIsUsedAsFallbackAnchor() {
+        LogParsingRuleRepository repository = mock(LogParsingRuleRepository.class);
+        when(repository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of());
+        LogPromptRefiner refiner = new LogPromptRefiner(repository, new SensitiveDataSanitizer(), new RepeatedLogCompressor());
+        StringBuilder log = new StringBuilder();
+        appendDistinctDebugNoise(log, 20_000, "scanned InvalidErrorException.class and ErrorMvcAutoConfiguration");
+        log.append("2026-09-08 09:03:22 ERROR Failed to configure datasource because url is missing\n");
+        appendDistinctDebugNoise(log, 45_000, "shutdown details without another failure signal");
+
+        LogPromptRefiner.RefinedLog result = refiner.refine(log.toString(), null);
+
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.text())
+                .hasSizeLessThanOrEqualTo(12_000)
+                .contains("2026-09-08 09:03:22 ERROR Failed to configure datasource because url is missing");
+    }
+
+    private void appendDistinctDebugNoise(StringBuilder log, int targetLength, String message) {
+        for (int line = 0; log.length() < targetLength; line++) {
+            log.append("DEBUG ").append(message).append(" id")
+                    .append(alphabeticIdentifier(line)).append('\n');
+        }
+    }
+
+    private String alphabeticIdentifier(int value) {
+        StringBuilder identifier = new StringBuilder();
+        do {
+            identifier.append((char) ('a' + value % 26));
+            value /= 26;
+        } while (value > 0);
+        return identifier.reverse().toString();
+    }
+
     private LogParsingRule rule(LogParsingRule.RuleType type, String regex) {
         return LogParsingRule.builder()
                 .ruleType(type)

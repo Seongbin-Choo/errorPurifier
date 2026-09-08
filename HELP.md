@@ -60,7 +60,7 @@ Flyway는 새 DB에 초기 스키마를 생성합니다. 개발 프로필은 기
 | --- | --- | --- |
 | POST | `/api/v1/client/sync` | 디바이스 등록·동기화 및 활성 파싱 룰 수신 |
 | GET | `/api/v1/health` | 서버 및 DB 연결 준비 상태 조회 |
-| POST | `/api/v1/prompt/prepare` | 로그 정제, 캐시 확인, LLM 프롬프트 준비 |
+| POST | `/api/v1/prompt/prepare` | 최대 1,000,000자의 로그 정제, 캐시 확인, LLM 프롬프트 준비 |
 | POST | `/api/v1/prompt/processes` | 캐시 미스 후 검증된 프로세스 템플릿 등록 |
 | POST | `/api/v1/usage` | LLM 호출 메타데이터 기록 |
 | PATCH | `/api/v1/usage/{usageId}/feedback` | 호출 결과 피드백 기록 |
@@ -100,3 +100,5 @@ Flyway는 새 DB에 초기 스키마를 생성합니다. 개발 프로필은 기
 오류 응답은 모든 API에서 `timestamp`, `status`, `code`, `message`, `fieldErrors` 필드로 일관되게 반환됩니다.
 
 `POST /api/v1/prompt/prepare`가 `analysisReady=false`를 반환하면 클라이언트 현지화를 위한 안정적인 `guidanceCode`와 기존 호환용 `guidance` 문자열을 함께 제공합니다. 현재 코드는 `BUILD_WRAPPER_ONLY`와 `NO_ACTIONABLE_LOG`이며, 구버전 서버처럼 코드가 없거나 미래의 알 수 없는 코드가 오면 클라이언트는 `guidance`를 그대로 표시해야 합니다.
+
+`rawLog`와 `selectedText`는 각각 최대 1,000,000자까지 허용합니다. 허용된 로그는 민감정보 마스킹과 반복 구간 압축을 거친 뒤 오류 앵커 중심으로 최대 12,000자까지 줄여 LLM 프롬프트를 준비합니다. 별도의 `POST /api/v1/audit` 요청 크기 제한은 이 프롬프트 준비 제한과 다릅니다.
