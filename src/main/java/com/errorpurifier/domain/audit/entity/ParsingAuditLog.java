@@ -52,7 +52,7 @@ public class ParsingAuditLog {
     private boolean isReviewed = false;
 
     @CreatedDate
-    @Column(updatable = false, name = "created_at")
+    @Column(nullable = false, updatable = false, name = "created_at")
     private LocalDateTime createdAt;
 
     @Builder
