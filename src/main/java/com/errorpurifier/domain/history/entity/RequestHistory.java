@@ -39,7 +39,7 @@ public class RequestHistory {
     private int processingTimeMs;
 
     @CreatedDate
-    @Column(updatable = false, name = "created_at")
+    @Column(updatable = false, name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public enum RequestType {

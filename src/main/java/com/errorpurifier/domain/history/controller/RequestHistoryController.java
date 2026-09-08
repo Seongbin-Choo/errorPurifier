@@ -2,13 +2,13 @@ package com.errorpurifier.domain.history.controller;
 
 import com.errorpurifier.domain.history.dto.RequestHistoryResponse;
 import com.errorpurifier.domain.history.service.RequestHistoryService;
+import com.errorpurifier.global.common.CursorSlice;
 import com.errorpurifier.global.security.AdminAccessService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,8 +19,11 @@ public class RequestHistoryController {
     private final AdminAccessService adminAccessService;
 
     @GetMapping
-    public Page<RequestHistoryResponse> findAll(@RequestHeader(value = "X-Admin-Token", required = false) String adminToken, Pageable pageable) {
+    public CursorSlice<RequestHistoryResponse> findAll(
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
         adminAccessService.requireAdmin(adminToken);
-        return historyService.findAll(pageable);
+        return historyService.findSlice(cursor, size);
     }
 }
