@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestHeaderException.class})
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception exception) {
         return response(HttpStatus.BAD_REQUEST.value(), "요청 본문 또는 필수 헤더 형식이 올바르지 않습니다.", Map.of());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        String parameterName = exception.getName();
+        String message = parameterName == null
+                ? "요청 파라미터 형식이 올바르지 않습니다."
+                : "요청 파라미터 '" + parameterName + "'의 형식이 올바르지 않습니다.";
+        return response(HttpStatus.BAD_REQUEST.value(), message, Map.of());
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
