@@ -90,14 +90,15 @@ Flyway는 새 DB에 초기 스키마를 생성합니다. 개발 프로필은 기
 | POST | `/api/v1/admin/diagnostic-playbooks/preview` | 활성 플레이북 매칭 미리보기 |
 | POST | `/api/v1/admin/diagnostic-playbooks/preview-pattern` | 작성 중인 정규식 매칭 검사 |
 | GET | `/api/v1/admin/dashboard` | 운영 현황 대시보드 집계 조회 |
-| GET | `/api/v1/audit?page=0&size=20` | 마스킹된 감사 로그 조회 |
+| GET | `/api/v1/audit?size=20&cursor=` | 마스킹된 감사 로그 조회 (커서 페이징) |
 | PATCH | `/api/v1/audit/{auditId}/reviewed` | 감사 로그 검토 완료 처리 |
 | GET | `/api/v1/history?size=20&cursor=` | 요청 이력 조회 (커서 페이징) |
 | GET | `/api/v1/admin/refinement-quality` | 정제 품질 집계 조회 |
 
 감사 로그에 전달된 원본·정제 로그는 저장 전에 민감정보를 마스킹합니다. 사용량·이력 API에는 원문 로그나 LLM 응답 본문을 저장하지 않습니다.
 
-`GET /api/v1/history`는 페이지 번호가 아니라 커서로 페이징합니다. 응답은 `{items, nextCursor, hasNext}` 형태이고,
+`GET /api/v1/history`와 `GET /api/v1/audit`는 페이지 번호가 아니라 커서로 페이징합니다. 응답은
+`{items, nextCursor, hasNext}` 형태이고,
 다음 페이지는 직전 응답의 `nextCursor`를 그대로 `cursor` 파라미터에 넣어 요청합니다. `hasNext=false`면 `nextCursor`는 `null`입니다.
 `size`는 1 이상 100 이하이며 기본값은 20입니다. 전체 개수는 반환하지 않습니다. 이유와 측정 근거는 [docs/PERFORMANCE.md](docs/PERFORMANCE.md)에 있습니다.
 
