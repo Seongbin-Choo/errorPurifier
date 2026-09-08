@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -108,6 +109,14 @@ class RequestHistoryCursorPagingTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/history").header("X-Admin-Token", ADMIN_TOKEN).param("size", "101"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsNonNumericSizeWithConsistentErrorResponse() throws Exception {
+        mockMvc.perform(get("/api/v1/history").header("X-Admin-Token", ADMIN_TOKEN).param("size", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("요청 파라미터 'size'의 형식이 올바르지 않습니다."));
     }
 
     private JsonNode requestSlice(String cursor, int size) throws Exception {
