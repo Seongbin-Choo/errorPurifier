@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -60,6 +62,60 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("종료 코드의 원인은 이 로그만으로 알 수 없으며")))
                 .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("캐시 키에 tenantId가 누락된 문제를 1차 의심")))
                 .andExpect(jsonPath("$.preparedPrompt").value(org.hamcrest.Matchers.containsString("IllegalStateException")));
+    }
+
+    @Test
+    void acceptsRealisticLargeConsoleLogAndFocusesItWithinPromptBudget() throws Exception {
+        String syncBody = mockMvc.perform(post("/api/v1/client/sync")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceUuid\":\"\",\"pluginVersion\":\"1.0.2-test\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String deviceId = objectMapper.readTree(syncBody).get("deviceUuid").asText();
+
+        StringBuilder largeLog = new StringBuilder();
+        for (int line = 0; largeLog.length() <= 120_000; line++) {
+            largeLog.append("DEBUG Spring candidate bean id")
+                    .append(alphabeticIdentifier(line))
+                    .append(" initialized with framework metadata\n");
+        }
+        largeLog.append("Caused by: java.lang.IllegalStateException: datasource configuration missing\n")
+                .append("\tat com.example.Application.start(Application.java:42)\n");
+
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+                "rawLog", largeLog.toString(),
+                "projectFiles", Map.of(),
+                "environmentTags", Map.of()
+        ));
+
+        String responseBody = mockMvc.perform(post("/api/v1/prompt/prepare")
+                        .header("X-Device-UUID", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.analysisReady").value(true))
+                .andExpect(jsonPath("$.originalCharacters").value(org.hamcrest.Matchers.greaterThan(100_000)))
+                .andExpect(jsonPath("$.logTruncated").value(true))
+                .andExpect(jsonPath("$.refinedLog").value(org.hamcrest.Matchers.containsString("IllegalStateException")))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(objectMapper.readTree(responseBody).get("refinedLog").asText()).hasSizeLessThanOrEqualTo(12_000);
+    }
+
+    @Test
+    void rejectsPromptLogOverOneMillionCharacters() throws Exception {
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+                "rawLog", "x".repeat(1_000_001),
+                "projectFiles", Map.of(),
+                "environmentTags", Map.of()
+        ));
+
+        mockMvc.perform(post("/api/v1/prompt/prepare")
+                        .header("X-Device-UUID", "00000000-0000-0000-0000-000000000001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.rawLog").value("콘솔 로그는 1,000,000자를 넘을 수 없습니다."));
     }
 
     @Test
@@ -352,5 +408,14 @@ class ApiIntegrationTest {
                     .append("\tat com.example.RedisClient.reconnect(RedisClient.java:42)\n");
         }
         return log.toString();
+    }
+
+    private String alphabeticIdentifier(int value) {
+        StringBuilder identifier = new StringBuilder();
+        do {
+            identifier.append((char) ('a' + value % 26));
+            value /= 26;
+        } while (value > 0);
+        return identifier.reverse().toString();
     }
 }

@@ -23,7 +23,16 @@ public class LogPromptRefiner {
     public static final String GUIDANCE_NO_ACTIONABLE_LOG = "NO_ACTIONABLE_LOG";
 
     private static final int MAX_PROMPT_LOG_CHARACTERS = 12_000;
-    private static final Pattern ERROR_ANCHOR = Pattern.compile("(?m)^.*(?:Caused by:|Exception|Error).*$");
+    private static final Pattern CAUSED_BY_ANCHOR = Pattern.compile(
+            "(?m)^\\s*Caused by:\\s+(?:[\\w$]+\\.)*[\\w$]+(?:Exception|Error)(?::|\\s|$).*$");
+    private static final Pattern EXCEPTION_DECLARATION_ANCHOR = Pattern.compile(
+            "(?m)^\\s*(?:Exception in thread\\s+\"[^\"]+\"\\s+|Suppressed:\\s+)?"
+                    + "(?:[\\w$]+\\.)*[\\w$]+(?:Exception|Error)(?::|\\s|$).*$");
+    private static final Pattern ERROR_LOG_ANCHOR = Pattern.compile(
+            "(?m)^\\s*(?:(?:\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2}:\\d{2})?|\\d{2}:\\d{2}:\\d{2})\\S*\\s+)?"
+                    + "(?:\\[[^\\r\\n]*]\\s*)?ERROR\\b.*$");
+    private static final Pattern APPLICATION_FAILED_ANCHOR = Pattern.compile(
+            "(?m)^\\s*APPLICATION FAILED TO START\\s*$");
     private static final Pattern EXECUTION_TRAILER = Pattern.compile("(?i)^.*(?:process finished with exit code|exit code\\s*\\d+|종료 코드\\s*\\d+).*$");
     private static final String EXECUTION_METADATA_PREFIX = "[실행 환경 메타데이터 - 이 로그만으로 종료 원인 판정 불가, 별도 애플리케이션 종료 로그 필요] ";
 
@@ -170,8 +179,7 @@ public class LogPromptRefiner {
         if (log.length() <= MAX_PROMPT_LOG_CHARACTERS) {
             return new TruncatedLog(log, false);
         }
-        Matcher matcher = ERROR_ANCHOR.matcher(log);
-        int anchor = matcher.find() ? matcher.start() : 0;
+        int anchor = findBestErrorAnchor(log);
         int before = 1_500;
         int after = 8_000;
         int start = Math.max(0, anchor - before);
@@ -187,6 +195,30 @@ public class LogPromptRefiner {
             focused = focused.substring(0, MAX_PROMPT_LOG_CHARACTERS);
         }
         return new TruncatedLog(focused, true);
+    }
+
+    private int findBestErrorAnchor(String log) {
+        int anchor = lastMatchStart(CAUSED_BY_ANCHOR, log);
+        if (anchor >= 0) {
+            return anchor;
+        }
+        anchor = lastMatchStart(EXCEPTION_DECLARATION_ANCHOR, log);
+        if (anchor >= 0) {
+            return anchor;
+        }
+        return Math.max(0, Math.max(
+                lastMatchStart(ERROR_LOG_ANCHOR, log),
+                lastMatchStart(APPLICATION_FAILED_ANCHOR, log)
+        ));
+    }
+
+    private int lastMatchStart(Pattern pattern, String log) {
+        Matcher matcher = pattern.matcher(log);
+        int lastStart = -1;
+        while (matcher.find()) {
+            lastStart = matcher.start();
+        }
+        return lastStart;
     }
 
     public record RefinedLog(String text, String exceptionType, Readiness readiness, int sourceCharacters, boolean truncated,
