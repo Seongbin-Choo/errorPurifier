@@ -792,7 +792,10 @@ public void recordHistory(HistoryEvent event) { ... }
 
 요청 이력은 계속 쌓이기만 하는 로그입니다. 100만 건에서 재보니 페이지 번호 방식(`OFFSET`)은
 **1페이지를 봐도 100만 행을 스캔**했고, 뒤쪽 페이지에서는 정렬이 디스크로 떨어졌습니다.
-정렬 키 `(created_at, id)`를 커서로 넘기는 방식으로 바꾸니 깊이와 무관하게 인덱스 19번 이동으로 끝납니다.
+정렬 키 `(created_at, id)`를 커서로 넘기는 방식으로 바꾸니 깊이와 무관하게 일정한 작업량으로 끝납니다.
+측정표의 인덱스 19회 이동은 원시 SQL `LIMIT 20`에서 첫 위치를 찾은 뒤 19개를 더 읽은 값입니다.
+실제 API의 `size=20`은 `hasNext` 판정을 위해 최대 21건을 읽으며, `0.000s`는 측정 정밀도보다 짧다는 뜻이지
+처리 지연이 문자 그대로 0이라는 뜻은 아닙니다.
 
 대가는 총 개수를 알 수 없고 임의 페이지로 뛸 수 없다는 것입니다. 최신부터 훑는 화면이라 받아들였습니다.
 측정 숫자와 판단 근거는 [docs/PERFORMANCE.md](docs/PERFORMANCE.md)에 있습니다.
@@ -885,10 +888,10 @@ errorPurifier/
     │       ├── application.yml       ← 공통 설정
     │       ├── application-dev.yml   ← 개발용 (SQL 로그 켬)
     │       ├── application-prod.yml  ← 운영용 (SQL 로그 끔)
-    │       ├── db/migration/         ← DB 테이블 만드는 SQL (V1~V4)
+    │       ├── db/migration/         ← DB 테이블 만드는 SQL (V1~V5)
     │       └── static/admin/         ← 관리자 웹 화면
     │
-    └── test/                 ← 자동 검증 코드 (총 45개 테스트)
+    └── test/                 ← 자동 검증 코드 (총 57개 테스트)
 ```
 
 ### 각 방(domain)의 5칸 구조 — 어디를 봐도 똑같습니다
@@ -1093,7 +1096,7 @@ http://localhost:8080/admin/
 
 ## 10. 테스트와 CI
 
-### 자동 테스트 56개
+### 자동 테스트 57개
 
 ```bash
 ./gradlew test
@@ -1104,7 +1107,7 @@ http://localhost:8080/admin/
 | `ApiIntegrationTest` | 15 | 진짜 서버를 띄우고 API를 호출해 전 과정 검증 |
 | `ErrorCacheServiceTest` | 7 | 정제 → 캐시 → 프롬프트 조립 |
 | `LogPromptRefinerTest` | 7 | 규칙 적용, 판정, 자르기 |
-| `RequestHistoryCursorPagingTest` | 3 | 커서 페이징이 동점 정렬에서 행을 빠뜨리거나 중복하지 않는지, 잘못된 커서·size 거부 |
+| `RequestHistoryCursorPagingTest` | 4 | 커서 페이징이 동점 정렬에서 행을 빠뜨리거나 중복하지 않는지, 잘못된 커서·범위 밖 또는 숫자가 아닌 size 거부 |
 | `RepeatedLogCompressorTest` | 3 | Redis/Kafka 재시도 블록, 타임스탬프 없는 예외 압축 |
 | `LogParsingRuleServiceTest` | 3 | 규칙 CRUD, 중복 검사 |
 | `AdminAccessServiceTest` | 3 | 관리자 토큰 검증 |
