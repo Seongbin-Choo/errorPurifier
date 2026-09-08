@@ -1,7 +1,81 @@
-# 요청 이력 조회 성능 개선 기록
+# 관리자 로그 조회 성능 개선 기록
 
 관리자용 요청 이력 조회 `GET /api/v1/history`를 100만 건 기준으로 측정하고 고친 기록입니다.
 숫자는 모두 아래 "재현 방법"으로 다시 만들 수 있습니다.
+
+## 감사 로그 조회: 같은 병목의 재발 방지
+
+`GET /api/v1/audit`도 `Page`와 OFFSET을 사용하고 `(created_at, id)` 정렬을 받쳐 주는 인덱스가
+없었다. 짧은 마스킹 완료 문자열을 저장한 감사 로그 1,000,000건(표식 `perf-audit-20260908`)을
+로컬 MariaDB 12.3.2에서 측정한 개선 전 기준은 다음과 같다.
+
+| offset / 작업 | 응답시간 |
+| --- | ---: |
+| 0 | 232.50ms |
+| 100,000 | 270.46ms |
+| 500,000 | 295.26ms |
+| 999,980 | 333.38ms |
+| `COUNT(*)` | 126.46ms |
+
+따라서 감사 로그도 요청 이력과 같은 `(created_at, id)` 커서를 사용한다. 쿼리는 MariaDB가 복합
+인덱스 범위로 처리할 수 있는 `created_at < ? OR (created_at = ? AND id < ?)` 형태이고, 한 번에
+`size + 1`건만 조회해 `hasNext`를 판단하므로 별도 count 쿼리가 없다. 응답은
+`{items, nextCursor, hasNext}`이고 `size`는 1~100이다. 동일 시간의 행은 `id DESC`가 순서를
+결정하므로 페이지 경계에서 누락되거나 중복되지 않는다.
+
+V6 적용 후 실제 엔티티 조회 칼럼과 같은 쿼리를 각 위치에서 7회 실행하고 MariaDB profiling의
+최소값을 기록했다. 표의 카운터는 별도 단일 실행의 세션 상태값이며, 원시 SQL `LIMIT 20` 기준이다.
+
+| 위치 | 실행계획 | 전체 스캔 | 인덱스 역방향 이동 | 정렬한 행 | 최소 응답 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 1페이지 | `type=index` | 0 | 19 | 0 | 0.333ms |
+| 깊이 100,000 | `type=range`, `Using index condition` | 0 | 19 | 0 | 0.250ms |
+| 깊이 500,000 | `type=range`, `Using index condition` | 0 | 19 | 0 | 0.127ms |
+| 깊이 999,980 | `type=range`, `Using index condition` | 0 | 19 | 0 | 0.238ms |
+
+실행시간의 미세한 차이는 캐시와 측정 오차 범위이고, 핵심은 깊이와 무관하게 전체 스캔·정렬 없이
+동일한 19회 이동으로 끝났다는 점이다. 실제 API는 `hasNext` 확인을 위해 `size=20`일 때 최대 21건을
+읽으므로 위 19회를 HTTP 요청 전체의 절대 읽기 횟수로 해석하면 안 된다.
+
+V6 마이그레이션은 `parsing_audit_log.created_at`을 `NOT NULL`로 바꾸고
+`idx_audit_created_at_id (created_at, id)`를 만든다. `MODIFY ... NOT NULL`은 데이터가 많은
+MariaDB 테이블을 재구성하고 그동안 잠금 또는 쓰기 지연을 일으킬 수 있다. 운영에서는 먼저 NULL
+존재 여부를 확인하고, 백업과 배포 창을 확보한 뒤 적용해야 한다. 로컬 100만 행에는 NULL이 없었고,
+두 문장을 포함한 Flyway V6 적용은 2.601초 걸렸다. 더 큰 운영 테이블에서는 이 수치를 그대로
+예상치로 쓰지 말고 별도 복제 환경에서 먼저 측정해야 한다.
+
+실제 측정 데이터의 연속 번호 100만 개는 0~9 숫자 집합 여섯 개를 교차 조인해 만들었다. 아래 SQL은
+같은 행 수와 값 분포를 더 간단히 재현하도록, 이 문서 뒤쪽의 `perf_numbers` 생성 절차를 재사용한
+동등한 재현 예시다. 측정 당시의 정확한 삽입문이라는 의미는 아니다.
+
+```sql
+INSERT INTO parsing_audit_log (
+    device_id, linked_cache_id, issue_type, raw_log_content, parsed_log_content,
+    user_comment, is_masked, is_reviewed, created_at
+)
+SELECT (SELECT id FROM client_device LIMIT 1),
+       NULL,
+       CASE (n - 1) % 3
+           WHEN 0 THEN 'USER_REPORTED'
+           WHEN 1 THEN 'LOW_COMPRESSION'
+           ELSE 'PARSING_ERROR'
+       END,
+       CONCAT('synthetic raw log ', n - 1),
+       CONCAT('synthetic parsed log ', n - 1),
+       'perf-audit-20260908',
+       TRUE,
+       (n - 1) % 2,
+       TIMESTAMP('2026-01-01 00:00:00') + INTERVAL (n - 1) MICROSECOND
+  FROM perf_numbers;
+ANALYZE TABLE parsing_audit_log;
+```
+
+벤치마크 행은 `user_comment = 'perf-audit-20260908'`로 식별한다. 실제 사용자 데이터와 섞인 DB에서
+정리할 때는 표식만 믿고 지우지 말고, 투입 전·후 ID 경계와 행 수를 함께 확인해야 한다.
+
+---
+
+## 요청 이력 조회
 
 ## 측정 환경
 

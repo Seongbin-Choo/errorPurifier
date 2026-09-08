@@ -201,17 +201,18 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 
 자동 테스트는 다음을 포함합니다.
 
-- Flyway V1~V5 마이그레이션과 JPA 매핑
+- Flyway V1~V6 마이그레이션과 JPA 매핑
 - 디바이스 인증, 프롬프트 준비, 관리자 API 권한
 - 플레이북 CRUD·미리보기·적용 횟수
 - 반복 Redis/Kafka 재시도 블록과 타임스탬프 없는 예외 블록 압축
 - 반복 압축 절감량 사용량 집계
 - 요청 이력 커서 페이징의 동점 정렬 처리(행 누락·중복 없음)와 잘못된 커서·size 거부
+- 감사 로그 커서 페이징의 동점 정렬 처리(행 누락·중복 없음)와 잘못된 커서·size 거부
 
 ## 참고 문서
 
 - API 세부 목록과 운영 환경변수: [HELP.md](HELP.md)
-- 요청 이력 조회 성능 측정과 개선 근거: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
+- 요청 이력·감사 로그 조회 성능 측정과 개선 근거: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
 - 플러그인 빌드·설치: [error-purifier-plugin README](https://github.com/Seongbin-Choo/error-purifier-plugin#readme)
 - 플러그인 데이터 흐름·보관·동의: [AI Error Log Purifier Privacy Policy](https://github.com/Seongbin-Choo/error-purifier-plugin/blob/main/PRIVACY.md)
 

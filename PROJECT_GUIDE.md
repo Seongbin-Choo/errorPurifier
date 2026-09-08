@@ -755,6 +755,15 @@ PATCH /api/v1/usage/{usageId}/feedback
 
 **코드 위치**: `domain/audit/service/ParsingAuditService.java`
 
+**조회도 커서 페이징입니다 — 왜 신고가 많아져도 일정한가요?**
+
+감사 로그 100만 건에서 기존 페이지 번호 방식은 첫 페이지도 232.50ms가 걸렸고, 마지막 구간은
+333.38ms에 더해 매 요청의 전체 개수 계산만 126.46ms가 들었습니다. `(created_at, id)` 복합
+인덱스와 커서 조건을 적용하니 깊이 10만·50만·999,980 모두 원시 SQL `LIMIT 20` 기준 인덱스를
+19회만 더 읽고 끝났습니다. 응답은 요청 이력과 같은 `{items, nextCursor, hasNext}`이고, 전체 개수와
+임의 페이지 이동은 제공하지 않습니다. 상세 수치와 마이그레이션 주의사항은
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md)에 있습니다.
+
 ---
 
 ### 5-13. 요청 이력 (비동기로 조용히 기록)
@@ -888,10 +897,10 @@ errorPurifier/
     │       ├── application.yml       ← 공통 설정
     │       ├── application-dev.yml   ← 개발용 (SQL 로그 켬)
     │       ├── application-prod.yml  ← 운영용 (SQL 로그 끔)
-    │       ├── db/migration/         ← DB 테이블 만드는 SQL (V1~V5)
+    │       ├── db/migration/         ← DB 테이블 만드는 SQL (V1~V6)
     │       └── static/admin/         ← 관리자 웹 화면
     │
-    └── test/                 ← 자동 검증 코드 (총 57개 테스트)
+    └── test/                 ← 자동 검증 코드 (총 61개 테스트)
 ```
 
 ### 각 방(domain)의 5칸 구조 — 어디를 봐도 똑같습니다
@@ -931,7 +940,7 @@ erDiagram
 | `diagnostic_playbook` | 에러별 점검 가이드 | `match_pattern`, `guidance`, `priority`, `match_count` |
 | `llm_usage_log` | AI 호출 기록 (본문 없음) | `input_tokens`, `output_tokens`, `latency_ms`, `rating` |
 | `refinement_feedback` | 정제 품질 평가 | `feedback_type`, `applied_rule_counts`(JSON), `log_truncated` |
-| `parsing_audit_log` | 정제 오류 신고 (마스킹된 원본 포함) | `raw_log_content`, `is_masked`, `is_reviewed` |
+| `parsing_audit_log` | 정제 오류 신고 (마스킹된 원본 포함) | `raw_log_content`, `is_reviewed`, `created_at`(인덱스 `idx_audit_created_at_id`) |
 | `request_history` | 요청 이력 | `request_type`, `processing_time_ms`, `created_at`(인덱스 `idx_history_created_at_id`) |
 
 > `log_parsing_rule`과 `diagnostic_playbook`은 다른 테이블과 외래키로 연결되지 않은 **독립 설정 테이블**입니다.
@@ -947,6 +956,7 @@ erDiagram
 | `V3__add_match_count_to_diagnostic_playbook.sql` | 플레이북 적용 횟수 칼럼 추가 |
 | `V4__add_repeat_compression_characters_to_llm_usage_log.sql` | 반복 압축 절감량 칼럼 추가 |
 | `V5__add_created_at_index_to_request_history.sql` | 요청 이력 `created_at`을 `NOT NULL`로 바꾸고 `(created_at, id)` 인덱스 추가 |
+| `V6__add_created_at_index_to_parsing_audit_log.sql` | 감사 로그 `created_at`을 `NOT NULL`로 바꾸고 `(created_at, id)` 인덱스 추가 |
 
 **주요 설정의 뜻**
 
@@ -991,7 +1001,7 @@ erDiagram
 | POST | `/api/v1/admin/diagnostic-playbooks/preview-pattern` | 작성 중인 정규식 검사 |
 | GET | `/api/v1/admin/dashboard` | 운영 대시보드 |
 | GET | `/api/v1/admin/refinement-quality` | 정제 품질 집계 |
-| GET/PATCH | `/api/v1/audit`, `.../{id}/reviewed` | 감사 로그 조회·검토 처리 |
+| GET/PATCH | `/api/v1/audit`, `.../{id}/reviewed` | 감사 로그 조회(커서 페이징, `{items, nextCursor, hasNext}`)·검토 처리 |
 | GET | `/api/v1/history` | 요청 이력 조회 (커서 페이징, `{items, nextCursor, hasNext}`) |
 
 ### 오류 응답은 항상 같은 모양
@@ -1084,7 +1094,7 @@ http://localhost:8080/admin/
 ### 서버가 켜질 때 자동으로 일어나는 일
 
 ```
-① Flyway가 V1~V4 SQL을 순서대로 적용 (이미 적용된 건 건너뜀)
+① Flyway가 V1~V6 SQL을 순서대로 적용 (이미 적용된 건 건너뜀)
 ② Hibernate가 코드와 DB 테이블이 맞는지 검사 (validate)
 ③ DefaultLogParsingRuleInitializer가 기본 규칙 27개를 넣음 (설명이 중복이면 건너뜀)
 ④ DefaultDiagnosticPlaybookInitializer가 기본 플레이북 16개를 넣음 (이름이 중복이면 건너뜀)
@@ -1096,7 +1106,7 @@ http://localhost:8080/admin/
 
 ## 10. 테스트와 CI
 
-### 자동 테스트 57개
+### 자동 테스트 61개
 
 ```bash
 ./gradlew test
@@ -1108,6 +1118,7 @@ http://localhost:8080/admin/
 | `ErrorCacheServiceTest` | 7 | 정제 → 캐시 → 프롬프트 조립 |
 | `LogPromptRefinerTest` | 7 | 규칙 적용, 판정, 자르기 |
 | `RequestHistoryCursorPagingTest` | 4 | 커서 페이징이 동점 정렬에서 행을 빠뜨리거나 중복하지 않는지, 잘못된 커서·범위 밖 또는 숫자가 아닌 size 거부 |
+| `ParsingAuditCursorPagingTest` | 4 | 감사 로그 커서 페이징이 동점 정렬에서 행을 빠뜨리거나 중복하지 않는지, 잘못된 커서·범위 밖 또는 숫자가 아닌 size 거부 |
 | `RepeatedLogCompressorTest` | 3 | Redis/Kafka 재시도 블록, 타임스탬프 없는 예외 압축 |
 | `LogParsingRuleServiceTest` | 3 | 규칙 CRUD, 중복 검사 |
 | `AdminAccessServiceTest` | 3 | 관리자 토큰 검증 |
