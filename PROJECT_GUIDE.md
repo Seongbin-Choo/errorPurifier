@@ -788,6 +788,15 @@ public void recordHistory(HistoryEvent event) { ... }
 
 **코드 위치**: `domain/history/service/HistoryEventListener.java`
 
+**조회는 커서 페이징입니다 — 왜 페이지 번호가 아닌가요?**
+
+요청 이력은 계속 쌓이기만 하는 로그입니다. 100만 건에서 재보니 페이지 번호 방식(`OFFSET`)은
+**1페이지를 봐도 100만 행을 스캔**했고, 뒤쪽 페이지에서는 정렬이 디스크로 떨어졌습니다.
+정렬 키 `(created_at, id)`를 커서로 넘기는 방식으로 바꾸니 깊이와 무관하게 인덱스 19번 이동으로 끝납니다.
+
+대가는 총 개수를 알 수 없고 임의 페이지로 뛸 수 없다는 것입니다. 최신부터 훑는 화면이라 받아들였습니다.
+측정 숫자와 판단 근거는 [docs/PERFORMANCE.md](docs/PERFORMANCE.md)에 있습니다.
+
 ---
 
 ### 5-14. 관리자 화면과 대시보드
@@ -920,7 +929,7 @@ erDiagram
 | `llm_usage_log` | AI 호출 기록 (본문 없음) | `input_tokens`, `output_tokens`, `latency_ms`, `rating` |
 | `refinement_feedback` | 정제 품질 평가 | `feedback_type`, `applied_rule_counts`(JSON), `log_truncated` |
 | `parsing_audit_log` | 정제 오류 신고 (마스킹된 원본 포함) | `raw_log_content`, `is_masked`, `is_reviewed` |
-| `request_history` | 요청 이력 | `request_type`, `processing_time_ms` |
+| `request_history` | 요청 이력 | `request_type`, `processing_time_ms`, `created_at`(인덱스 `idx_history_created_at_id`) |
 
 > `log_parsing_rule`과 `diagnostic_playbook`은 다른 테이블과 외래키로 연결되지 않은 **독립 설정 테이블**입니다.
 
@@ -934,6 +943,7 @@ erDiagram
 | `V2__add_thinking_tokens_to_llm_usage_log.sql` | 추론 토큰 칼럼 추가 |
 | `V3__add_match_count_to_diagnostic_playbook.sql` | 플레이북 적용 횟수 칼럼 추가 |
 | `V4__add_repeat_compression_characters_to_llm_usage_log.sql` | 반복 압축 절감량 칼럼 추가 |
+| `V5__add_created_at_index_to_request_history.sql` | 요청 이력 `created_at`을 `NOT NULL`로 바꾸고 `(created_at, id)` 인덱스 추가 |
 
 **주요 설정의 뜻**
 
@@ -979,7 +989,7 @@ erDiagram
 | GET | `/api/v1/admin/dashboard` | 운영 대시보드 |
 | GET | `/api/v1/admin/refinement-quality` | 정제 품질 집계 |
 | GET/PATCH | `/api/v1/audit`, `.../{id}/reviewed` | 감사 로그 조회·검토 처리 |
-| GET | `/api/v1/history` | 요청 이력 조회 |
+| GET | `/api/v1/history` | 요청 이력 조회 (커서 페이징, `{items, nextCursor, hasNext}`) |
 
 ### 오류 응답은 항상 같은 모양
 
@@ -1083,7 +1093,7 @@ http://localhost:8080/admin/
 
 ## 10. 테스트와 CI
 
-### 자동 테스트 45개
+### 자동 테스트 56개
 
 ```bash
 ./gradlew test
@@ -1091,9 +1101,10 @@ http://localhost:8080/admin/
 
 | 테스트 파일 | 개수 | 무엇을 검증하나 |
 | --- | --- | --- |
-| `ApiIntegrationTest` | 12 | 진짜 서버를 띄우고 API를 호출해 전 과정 검증 |
+| `ApiIntegrationTest` | 15 | 진짜 서버를 띄우고 API를 호출해 전 과정 검증 |
 | `ErrorCacheServiceTest` | 7 | 정제 → 캐시 → 프롬프트 조립 |
-| `LogPromptRefinerTest` | 4 | 규칙 적용, 판정, 자르기 |
+| `LogPromptRefinerTest` | 7 | 규칙 적용, 판정, 자르기 |
+| `RequestHistoryCursorPagingTest` | 3 | 커서 페이징이 동점 정렬에서 행을 빠뜨리거나 중복하지 않는지, 잘못된 커서·size 거부 |
 | `RepeatedLogCompressorTest` | 3 | Redis/Kafka 재시도 블록, 타임스탬프 없는 예외 압축 |
 | `LogParsingRuleServiceTest` | 3 | 규칙 CRUD, 중복 검사 |
 | `AdminAccessServiceTest` | 3 | 관리자 토큰 검증 |
@@ -1104,6 +1115,8 @@ http://localhost:8080/admin/
 | `HealthServiceTest` | 2 | DB 연결 확인 |
 | `ParsingAuditServiceTest` | 1 | 감사 로그 마스킹 |
 | `RefinementQualityReportServiceTest` | 1 | 품질 집계 |
+| `UtcTimestampPersistenceIntegrationTest` | 1 | 저장된 시간이 UTC인지 |
+| `ErrorPurifierApplicationTimezoneTest` | 1 | 애플리케이션 기본 시간대가 UTC인지 |
 
 테스트는 **H2**라는 메모리 DB에서 돌아갑니다. 진짜 MariaDB가 없어도 됩니다.
 
