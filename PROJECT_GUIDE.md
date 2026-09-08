@@ -453,19 +453,22 @@ Caused by: java.sql.SQLException: user not found
 **어떻게 자르나요? — 아무 데나 자르지 않습니다**
 
 ```
-① 로그에서 "Caused by:" 또는 "Exception" 또는 "Error"가 처음 나오는 위치를 찾음 (= 닻)
-② 닻 기준 앞으로 1,500자 + 뒤로 8,000자를 잘라냄  ← 여기가 진짜 중요한 부분
-③ 남은 자리가 있으면 로그 맨 끝 2,000자도 붙임    ← 최종 결말도 중요하니까
-④ 사이에 "[... 긴 로그의 중간 구간 생략 ...]" 표시를 넣음
+① 마지막 `Caused by:`를 가장 우선해서 찾음 (= 가장 깊은 근본 원인 닻)
+② 없으면 줄 시작의 실제 예외 선언, `Exception in thread`, 대문자 `ERROR` 로그,
+   `APPLICATION FAILED TO START` 순으로 진단 신호를 찾음
+   (`InvalidErrorException.class`, `ErrorMvcAutoConfiguration` 같은 클래스명은 닻으로 쓰지 않음)
+③ 닻 기준 앞으로 1,500자 + 뒤로 8,000자를 잘라냄  ← 여기가 진짜 중요한 부분
+④ 남은 자리가 있으면 로그 맨 끝 2,000자도 붙임    ← 최종 결말도 중요하니까
+⑤ 사이에 "[... 긴 로그의 중간 구간 생략 ...]" 표시를 넣음
 ```
 
 ```mermaid
 flowchart LR
-  A["긴 로그 50,000자"] --> B["닻: 첫 Exception 위치 찾기"]
+  A["긴 로그 50,000자"] --> B["닻: 가장 깊은 Caused by 우선"]
   B --> C["앞 1,500자"]
   B --> D["뒤 8,000자"]
   A --> E["맨 끝 2,000자"]
-  C --> F["최종 프롬프트<br/>12,000자 이하"]
+  C --> F["LLM용 정제 로그<br/>12,000자 이하"]
   D --> F
   E --> F
 ```
@@ -1140,7 +1143,7 @@ http://localhost:8080/admin/
 | 10 | **DB를 코드가 마음대로 바꾸지 않는다** | `ddl-auto: validate` + Flyway 마이그레이션 |
 | 11 | **요청 폭주를 막는다** | 하루 100회 + 60초 10회 제한 |
 | 12 | **`.env`는 커밋하지 않는다** | `.gitignore`에 등록 |
-| 13 | **입력 크기를 제한한다** | 로그 최대 100,000자, 페이지 크기 최대 100 |
+| 13 | **입력 크기를 제한한다** | 프롬프트 준비 `rawLog`·`selectedText`는 각각 최대 1,000,000자, 감사 로그 원본·정제 본문은 각각 최대 100,000자, 페이지 크기는 최대 100 |
 
 ---
 
@@ -1219,7 +1222,7 @@ flowchart TD
   S4 --> S5["⑤ 실행 메타데이터 태깅<br/>Process finished with exit code"]
   S5 --> S6{"⑥ 분석 가능?<br/>assessReadiness"}
   S6 -->|"불가"| OUT2["안내 문구 반환<br/>AI 호출 안 함 💰"]
-  S6 -->|"가능"| S7["⑦ 12,000자로 자르기<br/>trimForPrompt"]
+  S6 -->|"가능"| S7["⑦ LLM용 정제 로그를 12,000자로 자르기<br/>trimForPrompt"]
   S7 --> S8["⑧ 예외 타입 감지<br/>NullPointerException"]
   S8 --> S9["⑨ 캐시 키 생성<br/>SHA-256"]
   S9 --> S10{"⑩ 캐시 있음?"}

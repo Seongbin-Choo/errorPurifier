@@ -2,12 +2,14 @@
 
 IntelliJ IDEA에서 발생한 오류 로그를 정제하고, 사용자가 선택한 LLM으로 분석하도록 돕는 로컬 개발 도구입니다. 반복 재시도 로그와 프레임워크 노이즈를 줄여 불필요한 프롬프트 비용을 낮추고, 분석 근거와 사용량을 함께 보여 줍니다.
 
-## Self-hosted Quick Start
+<a id="self-hosted-quick-start"></a>
 
-The supported zero-cost portfolio setup runs the Spring Boot backend and MariaDB locally with Docker Compose. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on macOS or Windows, or Docker Engine with the Compose plugin on Linux.
+## 셀프 호스팅 빠른 시작
 
-1. Clone this repository and open its directory.
-2. Create the local environment file:
+비용 없이 실행하는 포트폴리오 기본 구성은 Spring Boot 백엔드와 MariaDB를 Docker Compose로 로컬에서 실행합니다. macOS 또는 Windows에서는 [Docker Desktop](https://www.docker.com/products/docker-desktop/)을, Linux에서는 Compose 플러그인이 포함된 Docker Engine을 설치하세요.
+
+1. 이 저장소를 복제하고 저장소 디렉터리로 이동합니다.
+2. 로컬 환경변수 파일을 생성합니다.
 
    macOS/Linux:
 
@@ -21,7 +23,7 @@ The supported zero-cost portfolio setup runs the Spring Boot backend and MariaDB
    Copy-Item .env.example .env
    ```
 
-3. Open `.env` and replace every `replace-me` value. Generate a separate strong random value for each password or token:
+3. `.env`의 모든 `replace-me` 값을 교체합니다. 비밀번호와 토큰마다 서로 다른 강한 랜덤 값을 생성하세요.
 
    macOS/Linux:
 
@@ -42,13 +44,13 @@ The supported zero-cost portfolio setup runs the Spring Boot backend and MariaDB
    }
    ```
 
-4. Build and start MariaDB and the backend:
+4. MariaDB와 백엔드를 빌드하고 실행합니다.
 
    ```bash
    docker compose up --build
    ```
 
-5. In another terminal, wait for the health endpoint to report `UP`:
+5. 다른 터미널에서 상태 확인 API가 `UP`을 반환하는지 확인합니다.
 
    macOS/Linux:
 
@@ -62,25 +64,25 @@ The supported zero-cost portfolio setup runs the Spring Boot backend and MariaDB
    Invoke-RestMethod http://localhost:8080/api/v1/health
    ```
 
-   The expected response is `{"status":"UP"}`. Configure the IntelliJ plugin backend URL as `http://localhost:8080`.
+   예상 응답은 `{"status":"UP"}`입니다. IntelliJ 플러그인의 백엔드 URL을 `http://localhost:8080`으로 설정하세요.
 
-Stop the containers without deleting database data:
+데이터베이스 데이터를 유지하면서 컨테이너를 종료합니다.
 
 ```bash
 docker compose down
 ```
 
-> **Permanent data deletion:** `docker compose down -v` also deletes the named MariaDB volume and all devices, cache entries, usage records, feedback, history, and playbooks stored in it. This cannot be undone unless you have a backup.
+> **데이터 영구 삭제 주의:** `docker compose down -v`는 MariaDB named volume과 그 안의 디바이스, 캐시, 사용량, 피드백, 요청 이력, 플레이북을 모두 삭제합니다. 백업이 없다면 복구할 수 없습니다.
 
-The Compose setup binds the backend to `127.0.0.1` by default and does not publish the MariaDB port. It is intended for local evaluation, not as an internet-facing production deployment. A self-hosted operator is responsible for HTTPS termination, authentication and network access controls, secret rotation, database backups and restoration tests, monitoring, retention, and deletion requests. Do not expose the backend by changing `BACKEND_BIND_ADDRESS` until those controls are in place.
+Compose는 백엔드를 기본적으로 `127.0.0.1`에만 바인딩하고 MariaDB 포트를 호스트에 공개하지 않습니다. 이 구성은 로컬 평가용이며 인터넷에 직접 노출하는 운영 배포용이 아닙니다. 셀프 호스팅 운영자는 HTTPS 종단, 인증과 네트워크 접근 제어, 비밀값 교체, 데이터베이스 백업과 복구 테스트, 모니터링, 보존 기간, 삭제 요청을 직접 관리해야 합니다. 이러한 통제가 준비되기 전에는 `BACKEND_BIND_ADDRESS`를 변경해 백엔드를 외부에 노출하지 마세요.
 
-The application standardizes its JVM default time zone, Hibernate JDBC handling, and Compose containers on UTC. Values persisted in `DATETIME(6)` columns must therefore be interpreted as UTC, including when the backend is started directly from IntelliJ without Docker.
+애플리케이션은 JVM 기본 시간대, Hibernate JDBC 처리 시간대, Compose 컨테이너 시간대를 UTC로 통일합니다. Docker를 사용하지 않고 IntelliJ에서 백엔드를 직접 실행한 경우를 포함해 `DATETIME(6)` 칼럼에 저장된 값은 UTC로 해석해야 합니다.
 
-### Existing data when upgrading to UTC
+### UTC 적용 이전 데이터 처리
 
-This change does not automatically convert timestamp values already stored by an older version. If a portfolio or development database is disposable, back it up first if it contains anything useful, then recreate it. With Compose, `docker compose down -v` permanently deletes the entire database volume and all data in it; run it only after accepting that data loss, then start again with `docker compose up --build`.
+이 변경은 이전 버전이 저장한 시간값을 자동으로 변환하지 않습니다. 포트폴리오 또는 개발 데이터베이스를 삭제해도 된다면 필요한 데이터를 먼저 백업한 뒤 다시 생성할 수 있습니다. Compose에서 `docker compose down -v`를 실행하면 데이터베이스 볼륨과 모든 데이터가 영구 삭제되므로 데이터 손실을 감수할 수 있을 때만 실행하고, 이후 `docker compose up --build`로 다시 시작하세요.
 
-If the data must be preserved, take a verified backup and determine the actual source time zone for the historical records before converting a copy with a reviewed manual procedure. Never blindly subtract nine hours: records previously written by a Docker backend may already be UTC, while records written by a local JVM may use another time zone. No Flyway migration in this release converts existing timestamp data.
+데이터를 보존해야 한다면 검증된 백업을 만들고 과거 레코드가 실제로 기록된 원본 시간대를 확인한 뒤, 복사본에서 검토된 수동 변환 절차를 사용하세요. 무조건 9시간을 빼면 안 됩니다. 과거 Docker 백엔드가 저장한 레코드는 이미 UTC일 수 있고, 로컬 JVM이 저장한 레코드는 다른 시간대를 사용할 수 있습니다. 현재 Flyway 마이그레이션은 기존 시간 데이터를 변환하지 않습니다.
 
 ## 구성
 
@@ -102,6 +104,7 @@ flowchart LR
 ## 주요 기능
 
 - 선택 로그 또는 콘솔 전체 로그 정제
+- 최대 1,000,000자의 콘솔 로그 수신 후 민감정보 마스킹·반복 압축·오류 중심 구간 추출(LLM용 정제 로그는 최대 12,000자)
 - API 키, 비밀번호, Bearer 토큰, private key 등의 민감정보 마스킹
 - 연속 반복 로그 압축: 첫 2개와 마지막 1개를 보존하고 중간 반복을 요약
 - 타임스탬프 기반 재시도 로그와 타임스탬프 없는 예외 블록 반복 지원
@@ -136,7 +139,7 @@ flowchart LR
 
 개발 환경에서는 IntelliJ의 `Run > Edit Configurations > Environment variables` 또는 운영 환경의 비밀 관리 기능에 아래 값을 직접 설정합니다.
 
-| Name | Purpose |
+| 이름 | 용도 |
 | --- | --- |
 | `DB_URL` | MariaDB 연결 URL |
 | `DB_USERNAME` | DB 사용자명 |
@@ -145,7 +148,7 @@ flowchart LR
 
 로컬에서는 Git에서 제외된 `.env` 파일도 사용할 수 있습니다. IntelliJ 실행 환경변수와 운영 환경의 비밀 관리 기능에 설정한 값이 있으면 해당 값이 우선합니다. 비밀값이 든 `.env` 파일은 커밋하지 마세요.
 
-Docker를 사용하는 셀프호스팅 실행은 위의 [Self-hosted Quick Start](#self-hosted-quick-start)를 따르세요. Docker 없이 직접 실행하려면 MariaDB를 별도로 준비한 뒤 다음 명령을 사용합니다.
+Docker를 사용하는 셀프 호스팅 실행은 위의 [셀프 호스팅 빠른 시작](#self-hosted-quick-start)을 따르세요. Docker 없이 직접 실행하려면 MariaDB를 별도로 준비한 뒤 다음 명령을 사용합니다.
 
 ```bash
 ./gradlew bootRun
@@ -176,9 +179,9 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 
 `정제 로그` 탭에는 AI에 전달된 마스킹·압축 완료 로그가 표시됩니다. `내 사용량` 탭에는 실제 API 토큰, 응답 시간, 누적 반복 로그 압축 절감량이 표시됩니다.
 
-## 개인정보 및 셀프호스팅 운영 책임
+## 개인정보 및 셀프 호스팅 운영 책임
 
-이 백엔드는 중앙 운영 서비스가 아니라 사용자가 직접 배포하는 셀프호스팅 구성요소입니다. 데이터베이스의 디바이스·캐시·사용량·피드백·요청 이력에는 자동 보존기한이나 자동 삭제 작업이 없으므로, 접근 통제·전송 보안·백업·보존 기간·삭제는 백엔드 운영자가 관리해야 합니다. 일반 프롬프트 준비 흐름은 제출된 원본 로그나 AI 답변 본문을 데이터베이스에 저장하지 않으며, 현재 IntelliJ 플러그인은 별도의 감사 로그 API를 호출하지 않습니다.
+이 백엔드는 중앙 운영 서비스가 아니라 사용자가 직접 배포하는 셀프 호스팅 구성요소입니다. 데이터베이스의 디바이스·캐시·사용량·피드백·요청 이력에는 자동 보존기한이나 자동 삭제 작업이 없으므로, 접근 통제·전송 보안·백업·보존 기간·삭제는 백엔드 운영자가 관리해야 합니다. 일반 프롬프트 준비 흐름은 제출된 원본 로그나 AI 답변 본문을 데이터베이스에 저장하지 않으며, 현재 IntelliJ 플러그인은 별도의 감사 로그 API를 호출하지 않습니다.
 
 플러그인이 전송하는 정확한 데이터와 동의·철회 동작은 [플러그인 개인정보 처리방침](https://github.com/Seongbin-Choo/error-purifier-plugin/blob/main/PRIVACY.md)을 확인하세요.
 
