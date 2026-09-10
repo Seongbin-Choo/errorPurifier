@@ -212,7 +212,7 @@ GitHub Actions는 push와 pull request마다 Java 21 환경에서 테스트와 �
 ## 참고 문서
 
 - API 세부 목록과 운영 환경변수: [HELP.md](HELP.md)
-- 요청 이력·감사 로그 조회 성능 측정과 개선 근거: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
+- 핵심 로그 정제 파이프라인과 요청 이력·감사 로그 조회 성능 측정 근거: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
 - 플러그인 빌드·설치: [error-purifier-plugin README](https://github.com/Seongbin-Choo/error-purifier-plugin#readme)
 - 플러그인 데이터 흐름·보관·동의: [AI Error Log Purifier Privacy Policy](https://github.com/Seongbin-Choo/error-purifier-plugin/blob/main/PRIVACY.md)
 
